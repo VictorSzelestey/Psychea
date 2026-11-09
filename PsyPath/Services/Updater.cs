@@ -7,11 +7,11 @@ public record AppUpdate(Version Version, string ApkUrl);
 // Ok = false — проверить не удалось; Update = null — установлена последняя версия
 public record UpdateCheck(bool Ok, AppUpdate? Update, string Error = "");
 
-// обновление приложения из релизов GitHub: Android сам спросит подтверждение и сверит подпись APK
+// обновление приложения из ветки main на GitHub: Android сам спросит подтверждение и сверит подпись APK
 public static class Updater
 {
-    // отдельный публичный репозиторий только с APK: основной приватный, а токен в приложение класть нельзя
-    const string LatestUrl = "https://api.github.com/repos/Bedolagi73/PsyPath-releases/releases/latest";
+    // version.json и APK меняются только при релизе в main
+    const string LatestUrl = "https://raw.githubusercontent.com/VictorSzelestey/Psychea/main/releases/version.json";
     const string ApkType = "application/vnd.android.package-archive";
     const int BufferSize = 81920;
 
@@ -45,7 +45,6 @@ public static class Updater
         {
             using var timeout = new CancellationTokenSource(CheckTimeout);
             using var req = new HttpRequestMessage(HttpMethod.Get, LatestUrl);
-            req.Headers.Accept.ParseAdd("application/vnd.github+json");
             using var resp = await Http.SendAsync(req, timeout.Token);
 
             if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -55,19 +54,16 @@ public static class Updater
 
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(timeout.Token));
             var root = doc.RootElement;
-            if (!TryParseTag(root.GetProperty("tag_name").GetString(), out var latest))
+            if (!TryParseTag(root.GetProperty("version").GetString(), out var latest))
                 return new UpdateCheck(false, null, "Не удалось разобрать номер версии");
 
             if (latest <= Normalize(AppInfo.Current.Version))
                 return new UpdateCheck(true, null);
 
-            foreach (var asset in root.GetProperty("assets").EnumerateArray())
-            {
-                string url = asset.GetProperty("browser_download_url").GetString() ?? "";
-                if ((asset.GetProperty("name").GetString() ?? "").EndsWith(".apk", StringComparison.OrdinalIgnoreCase)
-                    && url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                    return new UpdateCheck(true, new AppUpdate(latest, url));
-            }
+            string url = root.GetProperty("apk").GetString() ?? "";
+            if (url.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)
+                && url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                return new UpdateCheck(true, new AppUpdate(latest, url));
             return new UpdateCheck(false, null, "В новой версии нет файла APK");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException)

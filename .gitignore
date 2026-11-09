@@ -426,3 +426,12 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Keys and secrets
+*.keystore
+*.jks
+.env
+**/bot.env
+*.apk
+!releases/Psychea.apk
+!/releases/
