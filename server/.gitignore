@@ -1,0 +1,10 @@
+bin/
+obj/
+# пароль базы и ключ токенов — не выкладывать на GitHub
+**/appsettings.Development.json
+**/appsettings.Production.json
+.env
+
+# токен бота и входы его пользователей
+**/bot.env
+PsyPath.Bot/data/
