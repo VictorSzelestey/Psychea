@@ -698,7 +698,7 @@ public class LessonPage : BasePage
         var card = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(0, 0, 0, 6), BackgroundColor = Pal.Paper };
         card.Children.Add(new Glitch(lesson != null ? "УРОК ПРОЙДЕН" : "ПОВТОР ПРОЙДЕН", 26));
         card.Children.Add(Ui.Text("▶ " + title.ToUpperInvariant(), 12, Pal.Ink2, true));
-        card.Children.Add(Ui.Mascot(170, idle: true));
+        card.Children.Add(mistakes == 0 ? Ui.Mood("love", 170) : Ui.Mascot(170, idle: true));
 
         var stats = new Grid
         {

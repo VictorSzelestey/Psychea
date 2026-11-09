@@ -90,6 +90,18 @@ public static class Ui
         return img;
     }
 
+    // маскот с настроением под конкретный экран: файл mood_*.png в Resources/Images
+    public static Image Mood(string name, double height)
+    {
+        return new Image
+        {
+            Source = "mood_" + name + ".png",
+            HeightRequest = height,
+            Aspect = Aspect.AspectFit,
+            HorizontalOptions = LayoutOptions.Center
+        };
+    }
+
     // версия приложения внизу экрана: «ПСИХЕЯ v1.1 (2)»
     public static Label VersionLabel()
     {

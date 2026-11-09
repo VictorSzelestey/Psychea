@@ -86,6 +86,7 @@ public class ReferencePage : BasePage
 
         if (entries.Count == 0)
         {
+            listBox.Children.Add(Ui.Mood("confused", 100));
             listBox.Children.Add(Ui.Text("НИЧЕГО НЕ НАЙДЕНО", 13, Pal.Ink2, true, TextAlignment.Center));
             return;
         }

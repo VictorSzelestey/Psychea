@@ -245,7 +245,7 @@ public class PathPage : DataPage
             ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
         };
         g.Children.Add(text);
-        var cat = Ui.Mascot(112);
+        var cat = Ui.Mood("love", 112);
         cat.VerticalOptions = LayoutOptions.End;
         Grid.SetColumn(cat, 1);
         g.Children.Add(cat);

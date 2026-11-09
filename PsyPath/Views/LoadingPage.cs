@@ -30,7 +30,8 @@ public class LoadingPage : BasePage
         catch (Exception ex)
         {
             var err = new VerticalStackLayout { Padding = 24, VerticalOptions = LayoutOptions.Center, Spacing = 12 };
-            err.Children.Add(Ui.Text("ОШИБКА ЧТЕНИЯ КАССЕТЫ", 18, Pal.RedInk, true));
+            err.Children.Add(Ui.Mood("worried", 140));
+            err.Children.Add(Ui.Text("ОШИБКА ЗАГРУЗКИ", 18, Pal.RedInk, true));
             err.Children.Add(Ui.Text(ex.Message, 12));
             err.Children.Add(Ui.Text("Проверь, что JSON-файлы лежат в Resources/Raw.", 12, Pal.Ink2));
             SetBody(err);

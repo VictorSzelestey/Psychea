@@ -122,6 +122,7 @@ public class ProfilePage : DataPage
         var hist = new VerticalStackLayout { Spacing = 10 };
         hist.Children.Add(Ui.Text("ИСТОРИЯ ОПРОСНИКОВ", 12, Pal.RedInk, true));
         if (p.History.Count == 0)
+            hist.Children.Add(Ui.Mood("sleep", 90));
             hist.Children.Add(Ui.Text("Пока пусто. Пройди любой опросник на первой вкладке.", 12, Pal.Ink2));
         foreach (var h in p.History.Take(15))
         {

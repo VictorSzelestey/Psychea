@@ -66,7 +66,9 @@ public class OnboardingPage : BasePage
 
         var mid = new VerticalStackLayout { Spacing = 8, VerticalOptions = LayoutOptions.Center };
         mid.Children.Add(Bubble(Slides[slide]));
-        mid.Children.Add(Ui.Mascot(IsLandscape ? 110 : 260, idle: true));
+        mid.Children.Add(slide == Slides.Length - 1
+            ? Ui.Mood("study", IsLandscape ? 110 : 260)
+            : Ui.Mascot(IsLandscape ? 110 : 260, idle: true));
         // в горизонтальном режиме по высоте может не влезть
         View center = IsLandscape ? new ScrollView { Content = mid } : mid;
         Grid.SetRow(center, 1);

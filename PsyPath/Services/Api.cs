@@ -28,11 +28,7 @@ public static class Api
     public static ApiUser? User { get; private set; }
     public static bool LoggedIn => token != null && User != null;
 
-    public static string BaseUrl
-    {
-        get => Preferences.Default.Get("api_url", DefaultUrl);
-        set => Preferences.Default.Set("api_url", value.Trim().TrimEnd('/'));
-    }
+    public static string BaseUrl => DefaultUrl;
 
     public static async Task RestoreSession()
     {

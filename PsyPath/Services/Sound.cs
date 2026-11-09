@@ -1,6 +1,6 @@
 namespace PsyPath.Services;
 
-// звуки «кассеты»: файлы Resources/Raw/sfx_*.wav. Выключаются в настройках
+// звуковые эффекты: файлы Resources/Raw/sfx_*.wav. Выключаются в настройках
 public static class Sound
 {
     static readonly string[] Names = { "tap", "ok", "bad", "win", "flip" };
