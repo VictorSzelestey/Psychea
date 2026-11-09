@@ -6,6 +6,7 @@ namespace PsyPath.Views;
 public class ProfilePage : DataPage
 {
     readonly Label syncInfo = Ui.Text("", 11, Pal.Ink2, true);
+    Elephant? elephant;
 
     // подписка только пока вкладка на экране: статическое событие иначе держало бы старые экраны
     protected override void OnAppearing()
@@ -13,12 +14,14 @@ public class ProfilePage : DataPage
         base.OnAppearing();
         Sync.Changed += ShowSync;
         ShowSync();
+        elephant?.Start();
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         Sync.Changed -= ShowSync;
+        elephant?.Stop();
     }
 
     // «ВСЁ ОТПРАВЛЕНО» или «ЖДЁТ СЕТИ: 3» — результаты, сделанные без интернета
@@ -120,8 +123,23 @@ public class ProfilePage : DataPage
 
         var hist = new VerticalStackLayout { Spacing = 10 };
         hist.Children.Add(Ui.Text("ИСТОРИЯ ОПРОСНИКОВ", 12, Pal.RedInk, true));
+
+        elephant?.Stop();
+        elephant = new Elephant(120);
+        elephant.Start();
+        hist.Children.Add(elephant);
+        var temperament = AppState.LastTemperament();
+        if (temperament is var (temperTitle, temperAbout))
+        {
+            hist.Children.Add(Ui.Text("ТВОЙ ТЕМПЕРАМЕНТ", 11, Pal.Ink2, true, TextAlignment.Center));
+            hist.Children.Add(Ui.Text(temperTitle, 20, Pal.Ink, true, TextAlignment.Center));
+            if (temperAbout.Length > 0)
+                hist.Children.Add(Ui.Text(temperAbout, 13, Pal.Ink, false, TextAlignment.Center));
+        }
+        else
+            hist.Children.Add(Ui.Text("Темперамент пока неизвестен. Пройди опросник «Темперамент» или EPI.", 12, Pal.Ink2, false, TextAlignment.Center));
+
         if (p.History.Count == 0)
-            hist.Children.Add(Ui.Mood("sleep", 90));
             hist.Children.Add(Ui.Text("Пока пусто. Пройди любой опросник на вкладке «Опросники».", 12, Pal.Ink2));
         foreach (var h in p.History.Take(15))
         {

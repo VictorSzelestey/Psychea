@@ -112,7 +112,8 @@ public class PathPage : DataPage
             if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
             int unlock = u.UnlockLevel;
             var chevron = Chevron(true);
-            path.Children.Add(Node(place, SectionSize, $"Раздел {u.Section}", u.Title, LessonState.Locked, u.Section.ToString(), chevron, async () =>
+            int upcoming = AppState.SectionNumber(u.Section);
+            path.Children.Add(Node(place, SectionSize, $"Раздел {upcoming}", u.Title, LessonState.Locked, upcoming.ToString(), chevron, async () =>
                 await Dlg.Alert(this, "СКОРО", $"Раздел появится позже и откроется на {unlock} уровне.")));
             place++;
         }
@@ -152,8 +153,12 @@ public class PathPage : DataPage
 
         int id = sec.Id;
         int unlock = AppState.UnlockLevel(id);
-        var node = Node(place, SectionSize, $"Раздел {sec.Id}", sec.Title, state,
-            state == LessonState.Done ? "✓" : sec.Id.ToString(), chevron, async () =>
+        int number = AppState.SectionNumber(id);
+        // счётчик объясняет, почему раздел ещё подсвечен: в нём остались непройденные уроки
+        int passed = sec.Lessons.Count(AppState.IsPassed);
+        string caption = passed > 0 ? $"Раздел {number} · пройдено {passed} из {sec.Lessons.Count}" : $"Раздел {number}";
+        var node = Node(place, SectionSize, caption, sec.Title, state,
+            state == LessonState.Done ? "✓" : number.ToString(), chevron, async () =>
             {
                 if (state == LessonState.Locked)
                 {

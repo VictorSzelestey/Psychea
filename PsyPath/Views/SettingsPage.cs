@@ -130,7 +130,7 @@ public class SettingsPage : AdminBase
         }
 
         ShowUpdate($"Доступна версия {check.Update.Version}", Pal.Ink2);
-        bool yes = await Dlg.Confirm(this, "ОБНОВЛЕНИЕ", $"Доступна версия {check.Update.Version}. Скачать и установить?", "ОБНОВИТЬ", "ПОЗЖЕ");
+        bool yes = await Dlg.Confirm(this, "ОБНОВЛЕНИЕ", Updater.Prompt(check.Update), "ОБНОВИТЬ", "ПОЗЖЕ");
         if (yes) await Install(check.Update);
     }
 

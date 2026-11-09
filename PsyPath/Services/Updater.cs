@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace PsyPath.Services;
 
-public record AppUpdate(Version Version, string ApkUrl);
+public record AppUpdate(Version Version, string ApkUrl, IReadOnlyList<string> Changelog);
 
 // Ok = false — проверить не удалось; Update = null — установлена последняя версия
 public record UpdateCheck(bool Ok, AppUpdate? Update, string Error = "");
@@ -39,6 +39,26 @@ public static class Updater
         return true;
     }
 
+    // changelog в version.json необязателен: без него окно обновления покажет только номер версии
+    static List<string> ReadChangelog(JsonElement root)
+    {
+        if (!root.TryGetProperty("changelog", out var items) || items.ValueKind != JsonValueKind.Array) return new();
+        return items.EnumerateArray()
+            .Where(x => x.ValueKind == JsonValueKind.String)
+            .Select(x => x.GetString() ?? "")
+            .Where(x => x.Length > 0)
+            .ToList();
+    }
+
+    // текст окна «Доступна новая версия»
+    public static string Prompt(AppUpdate update)
+    {
+        string news = update.Changelog.Count == 0
+            ? ""
+            : "Что нового:\n" + string.Join("\n", update.Changelog.Select(x => "• " + x)) + "\n\n";
+        return $"Доступна версия {update.Version}.\n\n{news}Скачать и установить?";
+    }
+
     public static async Task<UpdateCheck> Check()
     {
         try
@@ -63,7 +83,7 @@ public static class Updater
             string url = root.GetProperty("apk").GetString() ?? "";
             if (url.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)
                 && url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                return new UpdateCheck(true, new AppUpdate(latest, url));
+                return new UpdateCheck(true, new AppUpdate(latest, url, ReadChangelog(root)));
             return new UpdateCheck(false, null, "В новой версии нет файла APK");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException)

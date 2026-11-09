@@ -11,11 +11,18 @@ public class QuestionnairePage : BasePage
     readonly List<int> answers = new();
     int index;
     bool locked;
+    Elephant? elephant;
 
     public QuestionnairePage(Questionnaire quiz) : base(true)
     {
         this.quiz = quiz;
         ShowIntro();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        elephant?.Stop();
     }
 
     static View Wrap(View content)
@@ -122,6 +129,13 @@ public class QuestionnairePage : BasePage
         card.Children.Add(new Heading("РЕЗУЛЬТАТ", 24));
         card.Children.Add(Ui.Text(quiz.Title.ToUpperInvariant(), 12, Pal.Ink2, true));
         stack.Children.Add(card);
+
+        if (AppState.IsTemperamentQuiz(quiz.Id))
+        {
+            elephant = new Elephant(150);
+            card.Children.Add(elephant);
+            elephant.Start();
+        }
 
         if (res.Main != null) DominantView(card, stack, res);
         else ScalesView(card, res);

@@ -105,13 +105,16 @@ public static class AppState
         }
     }
 
-    static async Task<T> ReadAsset<T>(string name) where T : new()
+    // встроенный в APK файл как текст: админка сверяет его с сервером
+    public static async Task<string> ReadAssetText(string name)
     {
         using var stream = await FileSystem.OpenAppPackageFileAsync(name);
         using var reader = new StreamReader(stream);
-        var text = await reader.ReadToEndAsync();
-        return JsonSerializer.Deserialize<T>(text, Opt) ?? new T();
+        return await reader.ReadToEndAsync();
     }
+
+    static async Task<T> ReadAsset<T>(string name) where T : new() =>
+        JsonSerializer.Deserialize<T>(await ReadAssetText(name), Opt) ?? new T();
 
     public static void Save()
     {
@@ -202,6 +205,14 @@ public static class AppState
         var u = Rating.SectionUnlock.FirstOrDefault(x => x.Section == sectionId);
         return u?.UnlockLevel ?? 1;
     }
+
+    // номер раздела на пути — по порядку показа: id у разделов идут не подряд («Разминка» — 13)
+    public static int SectionNumber(int sectionId) =>
+        Lessons.Sections.Select(s => s.Id)
+            .Concat(Rating.SectionUnlock.Select(u => u.Section))
+            .Distinct()
+            .ToList()
+            .IndexOf(sectionId) + 1;
 
     public static bool IsDone(Lesson l) => P.Done.Contains(l.Id);
     public static bool IsMastered(Lesson l) => !IsDone(l) && l.RecommendedLevel <= Level - 2;
@@ -368,6 +379,25 @@ public static class AppState
             .Replace("{secondary}", r.Second.Scale.Name);
         string extra = q.BlendTexts.TryGetValue(pair[0] + "+" + pair[1], out var t) ? t : "";
         return (template + " " + extra).Trim();
+    }
+
+    // опросники, итог которых — тип темперамента
+    public static bool IsTemperamentQuiz(string id) => id is "temperament" or "epi";
+
+    // последний результат на темперамент; описание берётся из опросника, поэтому есть и у старых записей истории
+    public static (string Title, string About)? LastTemperament()
+    {
+        foreach (var h in P.History.Where(x => IsTemperamentQuiz(x.Id)))
+        {
+            var q = Questionnaires.FirstOrDefault(x => x.Id == h.Id);
+            if (q == null) continue;
+            string name = h.Headline.Split(" + ")[0];
+            var scale = q.Scales.FirstOrDefault(x => x.Name == name);
+            if (scale != null) return (h.Headline, scale.Description);
+            var type = q.BlendTexts.Values.Select(x => x.Split('\n', 2)).FirstOrDefault(x => x[0] == name);
+            if (type != null) return (h.Headline, type.Length > 1 ? type[1] : "");
+        }
+        return null;
     }
 
     public static void SaveResult(Questionnaire q, QOutcome r)

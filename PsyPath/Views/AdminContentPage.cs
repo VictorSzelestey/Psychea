@@ -13,6 +13,8 @@ public class AdminContentPage : AdminBase
     readonly string title;
     JsonNode? root;
     int version;
+    // опросники, которые есть в этой версии приложения, но ещё не опубликованы на сервере
+    List<JsonNode> unpublished = new();
 
     public AdminContentPage(string name)
     {
@@ -33,7 +35,45 @@ public class AdminContentPage : AdminBase
         }
         version = r.Body.GetProperty("version").GetInt32();
         root = JsonNode.Parse(r.Body.GetProperty("data").GetRawText());
+        if (name != "lessons") await FindUnpublished();
         Show(title, Build(), animate: true);
+    }
+
+    async Task FindUnpublished()
+    {
+        var onServer = Ids(-1);
+        var builtIn = JsonNode.Parse(await AppState.ReadAssetText("questionnaires.json"))!["items"]!.AsArray();
+        unpublished = builtIn.Where(n => !onServer.Contains(Str(n!, "id"))).Select(n => n!).ToList();
+    }
+
+    // кнопка публикации: сервер важнее встроенного контента, поэтому без неё новый опросник никто не увидит
+    View UnpublishedCard(JsonNode item)
+    {
+        string quizTitle = Str(item, "title");
+        string json = item.ToJsonString();
+
+        var box = new VerticalStackLayout { Spacing = 6 };
+        box.Children.Add(Ui.Text(quizTitle, 14, Pal.Ink, true));
+        box.Children.Add(Ui.Text($"{item["questions"]?.AsArray().Count ?? 0} вопросов. Есть в приложении, на сервере ещё нет.", 12, Pal.Ink));
+
+        var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.Paper, 14);
+        publish.Clicked += async (s, e) =>
+        {
+            if (!await Dlg.Confirm(this, "ОПУБЛИКОВАТЬ?", $"Опросник «{quizTitle}» появится у всех пользователей при следующем запуске приложения.", "ОПУБЛИКОВАТЬ", "ОТМЕНА"))
+                return;
+            publish.Enabled = false;
+            var error = await SaveDoc(doc => { doc["items"]!.AsArray().Add(JsonNode.Parse(json)); return doc; });
+            if (error != null)
+            {
+                publish.Enabled = true;
+                await Dlg.Alert(this, "НЕ ВЫШЛО", error);
+                return;
+            }
+            unpublished.Remove(item);
+            Show(title, Build());
+        };
+        box.Children.Add(publish);
+        return Ui.Card(box, Pal.Amber, 12);
     }
 
     View Build()
@@ -67,6 +107,9 @@ public class AdminContentPage : AdminBase
         }
         else
         {
+            foreach (var item in unpublished)
+                stack.Children.Add(UnpublishedCard(item));
+
             var items = root!["items"]!.AsArray();
             for (int i = 0; i < items.Count; i++)
                 AddQuiz(stack, items[i]!, i);

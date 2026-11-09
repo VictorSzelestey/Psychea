@@ -32,7 +32,7 @@ public static class Start
         Preferences.Default.Set("update_checked", DateTime.UtcNow);
         if (check.Update == null) return;
 
-        bool yes = await Dlg.Confirm(shell, "ОБНОВЛЕНИЕ", $"Доступна версия {check.Update.Version}. Скачать и установить?", "ОБНОВИТЬ", "ПОЗЖЕ");
+        bool yes = await Dlg.Confirm(shell, "ОБНОВЛЕНИЕ", Updater.Prompt(check.Update), "ОБНОВИТЬ", "ПОЗЖЕ");
         if (yes) await shell.Navigation.PushAsync(new SettingsPage(check.Update), false);
     }
 }

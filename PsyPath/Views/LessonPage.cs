@@ -217,8 +217,8 @@ public class LessonPage : BasePage
         else
         {
             mistakes++;
-            // ошибку повторяем один раз в конце урока
-            if (retried.Add(cur)) queue.Add(cur);
+            // ошибку повторяем один раз в конце урока; на повторе она просто остаётся в списке до следующего раза
+            if (lesson != null && retried.Add(cur)) queue.Add(cur);
         }
 
         onChecked?.Invoke(ok);
@@ -744,7 +744,7 @@ public class LessonPage : BasePage
             box.Children.Add(Ui.Text($"LV {levelNow}  {lv.Name.ToUpperInvariant()}", 20, Pal.Ink, true, TextAlignment.Center));
             var opened = AppState.Rating.SectionUnlock
                 .Where(u => u.UnlockLevel > levelStart && u.UnlockLevel <= levelNow)
-                .Select(u => "Открыт раздел " + u.Section + ": " + u.Title)
+                .Select(u => "Открыт раздел " + AppState.SectionNumber(u.Section) + ": " + u.Title)
                 .ToList();
             foreach (var o in opened)
                 box.Children.Add(Ui.Text("▸ " + o, 12, Pal.Ink, false, TextAlignment.Center));

@@ -8,7 +8,7 @@ alt — bedolagi73, alt2 — VictorSzelestey. В main напрямую не пи
 ## Как выпустить релиз
 1. `git switch main`, `git pull origin main`, `git merge alt` (или alt2). Подними версию в PsyPath/PsyPath.csproj.
 2. Задай AndroidKeyStore=true, AndroidSigningKeyStore, AndroidSigningKeyAlias, AndroidSigningKeyPass, AndroidSigningStorePass и выполни `dotnet publish PsyPath/PsyPath.csproj -f net9.0-android -c Release`.
-3. Готовый файл `*-Signed.apk` положи в releases/Psychea.apk, номер версии впиши в releases/version.json, затем `git add -A`, `git commit -m "релиз X.Y.Z"`, `git push origin main`.
+3. Готовый файл `*-Signed.apk` положи в releases/Psychea.apk, номер версии и список изменений (`changelog`) впиши в releases/version.json, затем `git add -A`, `git commit -m "релиз X.Y.Z"`, `git push origin main`.
 ## Чего нельзя
 - Заливать ключи, пароли, .env, bot.env, appsettings.Production.json: репозиторий виден всем.
 - Создавать новый ключ подписи: телефоны откажутся ставить обновление.
