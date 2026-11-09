@@ -696,7 +696,7 @@ public class LessonPage : BasePage
         var stack = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 10, 18, 30) };
         // карточка итогов — она же картинка для «Поделиться»
         var card = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(0, 0, 0, 6), BackgroundColor = Pal.Paper };
-        card.Children.Add(new Glitch(lesson != null ? "УРОК ПРОЙДЕН" : "ПОВТОР ПРОЙДЕН", 26));
+        card.Children.Add(new Heading(lesson != null ? "УРОК ПРОЙДЕН" : "ПОВТОР ПРОЙДЕН", 26));
         card.Children.Add(Ui.Text("▶ " + title.ToUpperInvariant(), 12, Pal.Ink2, true));
         card.Children.Add(mistakes == 0 ? Ui.Mood("love", 170) : Ui.Mascot(170, idle: true));
 

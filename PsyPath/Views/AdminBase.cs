@@ -38,7 +38,7 @@ public abstract class AdminBase : BasePage
             ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) }
         };
         header.Children.Add(back);
-        var t = new Glitch(title, 20);
+        var t = new Heading(title, 20);
         Grid.SetColumn(t, 1);
         header.Children.Add(t);
 

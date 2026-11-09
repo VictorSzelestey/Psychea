@@ -29,7 +29,7 @@ public class ReferencePage : BasePage
 
         var top = new VerticalStackLayout { Spacing = 0 };
         top.Children.Add(Ui.Stripes(4));
-        var title = new Glitch("СПРАВОЧНИК", 24);
+        var title = new Heading("СПРАВОЧНИК", 24);
         title.Margin = new Thickness(18, 10, 18, 4);
         top.Children.Add(title);
         var searchCard = Ui.Card(search, Pal.Paper2, 4);

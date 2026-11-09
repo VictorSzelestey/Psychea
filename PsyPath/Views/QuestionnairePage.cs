@@ -33,7 +33,7 @@ public class QuestionnairePage : BasePage
     void ShowIntro()
     {
         var stack = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 14, 18, 30) };
-        stack.Children.Add(new Glitch(quiz.Title.ToUpperInvariant(), 22));
+        stack.Children.Add(new Heading(quiz.Title.ToUpperInvariant(), 22));
         stack.Children.Add(Ui.Mascot(150, idle: true));
         stack.Children.Add(Ui.Box(Ui.Text(quiz.About, 14), Pal.Paper, 14));
         stack.Children.Add(Ui.Text($"Вопросов: {quiz.Questions.Count}", 12, Pal.Ink2, true));
@@ -122,7 +122,7 @@ public class QuestionnairePage : BasePage
         // карточка-итог для «Поделиться»: название, главный вывод, шкалы
         var card = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(0, 0, 0, 6), BackgroundColor = Pal.Paper };
         card.Children.Add(Ui.Stripes(3));
-        card.Children.Add(new Glitch("РЕЗУЛЬТАТ", 24));
+        card.Children.Add(new Heading("РЕЗУЛЬТАТ", 24));
         card.Children.Add(Ui.Text(quiz.Title.ToUpperInvariant(), 12, Pal.Ink2, true));
         stack.Children.Add(card);
 

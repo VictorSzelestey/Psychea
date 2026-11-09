@@ -229,7 +229,7 @@ public class PathPage : DataPage
             msg = "Ты прошёл всё, что сейчас доступно. Новые разделы скоро появятся!";
 
         var text = new VerticalStackLayout { Spacing = 8, VerticalOptions = LayoutOptions.Center };
-        text.Children.Add(new Glitch("Изучай психологию вместе с манулом!", 19, mono: false));
+        text.Children.Add(new Heading("Изучай психологию вместе с манулом!", 19, mono: false));
         text.Children.Add(Ui.Text(msg, 12, Pal.Ink2));
         if (current != null)
         {

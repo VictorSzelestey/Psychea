@@ -139,7 +139,7 @@ public class FlashcardsPage : AdminBase
         Sound.Play("win");
 
         var s = List();
-        s.Children.Add(new Glitch("ГОТОВО", 26));
+        s.Children.Add(new Heading("ГОТОВО", 26));
         s.Children.Add(Ui.Mascot(150, idle: true));
         var stats = new VerticalStackLayout { Spacing = 4 };
         stats.Children.Add(Ui.Text($"С первого раза: {firstTry} из {total}", 16, Pal.Ink, true, TextAlignment.Center));

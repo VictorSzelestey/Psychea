@@ -119,32 +119,14 @@ public class Bar : Border
     }
 }
 
-// заголовок со сдвигом цветов, как на изношенной кассете; mono — моноширинный шрифт VHS
-public class Glitch : Grid
+// заголовок экрана; mono — моноширинный шрифт VHS, он только в ретро-режиме
+public class Heading : Grid
 {
-    public Glitch(string text, double size = 28, Color? color = null, bool mono = true)
+    public Heading(string text, double size = 28, Color? color = null, bool mono = true)
     {
         var main = Ui.Text(text, size, color ?? Pal.Ink, true);
-        // без ретро-режима — обычный заголовок основным шрифтом
-        if (!Ui.Retro)
-        {
-            Children.Add(main);
-            return;
-        }
-
-        var red = Ui.Text(text, size, Pal.Red, true);
-        red.TranslationX = -1.5;
-        red.Opacity = 0.85;
-
-        var cyan = Ui.Text(text, size, Pal.Cyan, true);
-        cyan.TranslationX = 1.5;
-        cyan.Opacity = 0.85;
-
-        foreach (var label in new[] { red, cyan, main })
-        {
-            if (mono) label.FontFamily = "MonoBold";
-            Children.Add(label);
-        }
+        if (mono && Ui.Retro) main.FontFamily = "MonoBold";
+        Children.Add(main);
     }
 }
 

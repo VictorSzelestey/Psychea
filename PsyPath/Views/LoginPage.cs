@@ -42,7 +42,7 @@ public class LoginPage : BasePage
         status = Ui.Text(status.Text, 12, status.TextColor, true);
 
         var stack = new VerticalStackLayout { Spacing = 12, Padding = new Thickness(20, 16, 20, 28) };
-        stack.Children.Add(new Glitch(register ? "РЕГИСТРАЦИЯ" : "ВХОД", 26));
+        stack.Children.Add(new Heading(register ? "РЕГИСТРАЦИЯ" : "ВХОД", 26));
         stack.Children.Add(Ui.Mood("study", IsLandscape ? 80 : 130));
         // подпись над полем всегда видна, подсказка внутри поля — только пример
         stack.Children.Add(Labeled("ЛОГИН", login, register ? "3–32 символа: латиница, цифры, _ . -" : null));

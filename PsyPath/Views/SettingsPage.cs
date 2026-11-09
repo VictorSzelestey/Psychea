@@ -55,7 +55,7 @@ public class SettingsPage : AdminBase
             Settings.Retro = Ui.Retro;
             Build();
         }));
-        s.Children.Add(Form.Hint("Эффект видеокассеты: строки развёртки, цветные полоски и сдвиг цветов в заголовках."));
+        s.Children.Add(Form.Hint("Эффект видеокассеты: строки развёртки, цветные полоски и моноширинные заголовки."));
 
         s.Children.Add(Form.Choice("АНИМАЦИИ", OnOff, Anim.Still ? "0" : "1", v =>
         {

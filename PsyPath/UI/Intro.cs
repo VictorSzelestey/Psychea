@@ -14,7 +14,7 @@ public class Intro : VerticalStackLayout
         HorizontalOptions = LayoutOptions.Center;
 
         logo = new Image { Source = "appiconfg.png", WidthRequest = 200, HeightRequest = 200, HorizontalOptions = LayoutOptions.Center };
-        title = new Glitch("ПСИХЕЯ", 38) { HorizontalOptions = LayoutOptions.Center };
+        title = new Heading("ПСИХЕЯ", 38) { HorizontalOptions = LayoutOptions.Center };
         stripes = Ui.Stripes(3);
         stripes.WidthRequest = 170;
         stripes.HorizontalOptions = LayoutOptions.Center;
