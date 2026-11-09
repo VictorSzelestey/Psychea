@@ -339,7 +339,21 @@ public static class AppState
         {
             res.Headline = string.Join("; ", res.Scores.Select(x => x.Scale.Name + ": " + (x.Range?.Title ?? x.Value.ToString())));
         }
+
+        if (q.Mode == "quadrants" && res.Scores.Count >= 2) ApplyQuadrant(q, res);
         return res;
+    }
+
+    // тип по двум первым шкалам: в BlendTexts ключ из двух букв, h — шкала выше границы Split, l — нет;
+    // значение — название и описание, разделённые переводом строки
+    static void ApplyQuadrant(Questionnaire q, QOutcome res)
+    {
+        string key = (res.Scores[0].Value > q.Split ? "h" : "l") + (res.Scores[1].Value > q.Split ? "h" : "l");
+        if (!q.BlendTexts.TryGetValue(key, out var text)) return;
+        var parts = text.Split('\n', 2);
+        res.TypeTitle = parts[0];
+        res.TypeText = parts.Length > 1 ? parts[1] : "";
+        res.Headline = res.TypeTitle;
     }
 
     public static string BlendText(Questionnaire q, QOutcome r)

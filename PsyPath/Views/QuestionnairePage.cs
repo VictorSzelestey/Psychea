@@ -175,6 +175,12 @@ public class QuestionnairePage : BasePage
 
     void ScalesView(VerticalStackLayout stack, QOutcome res)
     {
+        if (res.TypeTitle.Length > 0)
+        {
+            stack.Children.Add(Ui.Text(res.TypeTitle.ToUpperInvariant(), 30, Pal.RedInk, true, TextAlignment.Center));
+            stack.Children.Add(Ui.Text(res.TypeText, 14, Pal.Ink2, false, TextAlignment.Center));
+        }
+
         int i = 0;
         foreach (var sc in res.Scores)
         {

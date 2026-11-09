@@ -79,6 +79,8 @@ public class Questionnaire
     public string Emoji { get; set; } = "";
     public string Kind { get; set; } = "choice";
     public string Mode { get; set; } = "scales";
+    // режим quadrants: граница, выше которой шкала считается высокой
+    public int Split { get; set; }
     public string About { get; set; } = "";
     public string Source { get; set; } = "";
     public string Disclaimer { get; set; } = "";
@@ -141,6 +143,9 @@ public class QOutcome
     public QScore? Main { get; set; }
     public QScore? Second { get; set; }
     public string Headline { get; set; } = "";
+    // режим quadrants: тип по двум шкалам
+    public string TypeTitle { get; set; } = "";
+    public string TypeText { get; set; } = "";
 }
 
 public class QHistoryItem
