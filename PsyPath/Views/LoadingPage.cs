@@ -30,8 +30,7 @@ public class LoadingPage : BasePage
         catch (Exception ex)
         {
             var err = new VerticalStackLayout { Padding = 24, VerticalOptions = LayoutOptions.Center, Spacing = 12 };
-            err.Children.Add(Ui.Mood("worried", 140));
-            err.Children.Add(Ui.Text("ОШИБКА ЗАГРУЗКИ", 18, Pal.RedInk, true));
+            err.Children.Add(Ui.Text("ОШИБКА ЧТЕНИЯ КАССЕТЫ", 18, Pal.RedInk, true));
             err.Children.Add(Ui.Text(ex.Message, 12));
             err.Children.Add(Ui.Text("Проверь, что JSON-файлы лежат в Resources/Raw.", 12, Pal.Ink2));
             SetBody(err);
@@ -40,8 +39,9 @@ public class LoadingPage : BasePage
 
         if (Api.LoggedIn)
         {
-            // токен мог истечь; без связи ждём не дольше 3 с и работаем с тем, что в телефоне
-            var check = Api.Me();
+            // токен продлевается при каждом запуске, но мог уже истечь;
+            // без связи ждём не дольше 3 с и работаем с тем, что в телефоне
+            var check = Api.RefreshSession();
             await Task.WhenAny(check, Task.Delay(3000));
             if (check.IsCompleted && check.Result.Status == 401)
             {
@@ -50,7 +50,6 @@ public class LoadingPage : BasePage
             }
             else
             {
-                if (check.IsCompleted && check.Result.Ok) Api.UpdateUser(check.Result.Body.GetProperty("user"));
                 // этот телефон — главный источник прогресса, отправляем то, что могло не уйти
                 _ = AppState.PushNow();
             }
@@ -58,5 +57,6 @@ public class LoadingPage : BasePage
 
         await played;
         await SwitchRoot(Api.LoggedIn ? Start.Home() : new NavigationPage(new LoginPage()));
+        _ = Start.OfferUpdate();
     }
 }

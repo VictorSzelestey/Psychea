@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Npgsql;
 
@@ -17,6 +18,22 @@ public static partial class AuthEndpoints
         var g = app.MapGroup("/api/auth").RequireRateLimiting("auth");
         g.MapPost("/register", Register);
         g.MapPost("/login", Login);
+        // без действующего токена сюда не попасть, поэтому лимит попыток не нужен
+        app.MapPost("/api/auth/refresh", Refresh).RequireAuthorization();
+    }
+
+    // приложение продлевает токен при запуске: активного пользователя не выкидывает через 30 дней
+    static async Task<IResult> Refresh(ClaimsPrincipal me, NpgsqlDataSource db, Tokens tokens)
+    {
+        await using var cmd = db.CreateCommand(
+            "select id, login, display_name, role, is_blocked from psypath.users where id = $1");
+        cmd.Parameters.AddWithValue(me.UserId());
+        await using var r = await cmd.ExecuteReaderAsync();
+        if (!await r.ReadAsync()) return Errors.Unauthorized("Пользователь не найден");
+        if (r.GetBoolean(4)) return Errors.Forbidden("Аккаунт заблокирован");
+
+        var user = new UserDto(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetString(3));
+        return Results.Ok(new AuthResponse(tokens.Create(user.Id, user.Role), user));
     }
 
     static async Task<IResult> Register(AuthRequest req, NpgsqlDataSource db, Tokens tokens)

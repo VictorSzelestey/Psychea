@@ -11,10 +11,10 @@ public class AppShell : Shell
     public AppShell(int tab = 0)
     {
         Shell.SetNavBarIsVisible(this, false);
-        Shell.SetTabBarBackgroundColor(this, Pal.Ink);
-        Shell.SetTabBarForegroundColor(this, Pal.Amber);
-        Shell.SetTabBarTitleColor(this, Pal.Amber);
-        Shell.SetTabBarUnselectedColor(this, Pal.Gray);
+        Shell.SetTabBarBackgroundColor(this, Pal.Paper);
+        Shell.SetTabBarForegroundColor(this, Pal.Violet);
+        Shell.SetTabBarTitleColor(this, Pal.Violet);
+        Shell.SetTabBarUnselectedColor(this, Pal.Ink2);
 
         var tabs = new TabBar();
         tabs.Items.Add(MakeTab("ОПРОСНИКИ", "▣", typeof(QuestionnairesPage)));
@@ -35,7 +35,7 @@ public class AppShell : Shell
                 Glyph = glyph,
                 FontFamily = "MonoBold",
                 Size = 20,
-                Color = Pal.Amber
+                Color = Pal.Violet
             },
             ContentTemplate = new DataTemplate(pageType)
         };

@@ -16,19 +16,12 @@ public class Btn : ContentView
         label = Ui.Text(text, size, textColor ?? Pal.Ink, true, TextAlignment.Center);
         label.VerticalTextAlignment = TextAlignment.Center;
 
-        top = Ui.Card(label, fill, 13);
-        top.Margin = new Thickness(0, 0, 5, 5);
+        top = Ui.Card(label, fill, 13, 24);
+        top.StrokeThickness = 0;
+        top.Shadow = Ui.SoftShadow();
 
-        var shadow = new Border
-        {
-            BackgroundColor = Pal.Ink,
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(8) },
-            Margin = new Thickness(5, 5, 0, 0)
-        };
-
-        var g = new Grid();
-        g.Children.Add(shadow);
+        // нижний отступ — место под тень
+        var g = new Grid { Padding = new Thickness(0, 0, 0, 4) };
         g.Children.Add(top);
         Content = g;
 
@@ -37,8 +30,8 @@ public class Btn : ContentView
         {
             if (!enabled) return;
             Sound.Play("tap");
-            await top.Move(4, 4, 50);
-            await top.Move(0, 0, 60);
+            await top.Zoom(0.97, 50, Easing.CubicOut);
+            await top.Zoom(1, 60, Easing.CubicOut);
             Clicked?.Invoke(this, EventArgs.Empty);
         };
         g.GestureRecognizers.Add(tap);
@@ -80,17 +73,17 @@ public class Bar : Border
     {
         var fill = new BoxView
         {
-            Color = color ?? Pal.Amber,
+            Color = color ?? Pal.Violet,
             CornerRadius = new CornerRadius(4)
         };
         var g = new Grid { ColumnSpacing = 0, ColumnDefinitions = { filled, rest } };
         g.Children.Add(fill);
 
         BackgroundColor = Pal.Paper2;
-        Stroke = new SolidColorBrush(Pal.Ink);
-        StrokeThickness = 2;
+        Stroke = new SolidColorBrush(Pal.Line);
+        StrokeThickness = 1;
         StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(7) };
-        HeightRequest = 18;
+        HeightRequest = 14;
         Padding = new Thickness(0);
         Content = g;
         // при появлении на экране полоса плавно заполняется от нуля
@@ -126,10 +119,19 @@ public class Bar : Border
     }
 }
 
+// заголовок со сдвигом цветов, как на изношенной кассете; mono — моноширинный шрифт VHS
 public class Glitch : Grid
 {
-    public Glitch(string text, double size = 28, Color? color = null)
+    public Glitch(string text, double size = 28, Color? color = null, bool mono = true)
     {
+        var main = Ui.Text(text, size, color ?? Pal.Ink, true);
+        // без ретро-режима — обычный заголовок основным шрифтом
+        if (!Ui.Retro)
+        {
+            Children.Add(main);
+            return;
+        }
+
         var red = Ui.Text(text, size, Pal.Red, true);
         red.TranslationX = -1.5;
         red.Opacity = 0.85;
@@ -138,11 +140,11 @@ public class Glitch : Grid
         cyan.TranslationX = 1.5;
         cyan.Opacity = 0.85;
 
-        var main = Ui.Text(text, size, color ?? Pal.Ink, true);
-
-        Children.Add(red);
-        Children.Add(cyan);
-        Children.Add(main);
+        foreach (var label in new[] { red, cyan, main })
+        {
+            if (mono) label.FontFamily = "MonoBold";
+            Children.Add(label);
+        }
     }
 }
 
@@ -150,7 +152,7 @@ class ScanDrawable : IDrawable
 {
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
-        canvas.StrokeColor = new Color(0f, 0f, 0f, 0.06f);
+        canvas.StrokeColor = new Color(0.24f, 0.17f, 0.39f, 0.07f);
         canvas.StrokeSize = 1;
         for (float y = 0; y < dirtyRect.Height; y += 3)
             canvas.DrawLine(0, y, dirtyRect.Width, y);
@@ -159,11 +161,103 @@ class ScanDrawable : IDrawable
 
 public class Scanlines : Grid
 {
+    const double BandHeight = 34;
+
+    readonly BoxView band = new()
+    {
+        Color = Pal.Cyan,
+        HeightRequest = BandHeight,
+        VerticalOptions = LayoutOptions.Start,
+        Opacity = 0,
+        InputTransparent = true
+    };
+    bool swept;
+
     public Scanlines()
     {
         InputTransparent = true;
         CascadeInputTransparent = true;
         Children.Add(new GraphicsView { Drawable = new ScanDrawable(), InputTransparent = true });
+        Children.Add(band);
+        SizeChanged += (s, e) => Sweep();
+    }
+
+    // при появлении экрана по нему один раз проходит полоса «трекинга», как на видеокассете
+    void Sweep()
+    {
+        if (swept || Height <= 0 || Anim.Reduced) return;
+        swept = true;
+        band.Opacity = 0.14;
+        new Animation(y => band.TranslationY = y, -BandHeight, Height, Easing.Linear)
+            .Commit(band, "track", 16, 1400, finished: (v, c) => band.Opacity = 0);
+    }
+}
+
+// холмы и облака за содержимым экрана
+class BackdropDrawable : IDrawable
+{
+    public void Draw(ICanvas canvas, RectF rect)
+    {
+        float w = rect.Width, h = rect.Height;
+
+        canvas.FillColor = Pal.Hill;
+        canvas.FillCircle(w * 0.84f, 62, 54);
+        canvas.FillCircle(w * 0.62f, 82, 36);
+        canvas.FillCircle(w, 92, 46);
+
+        Hill(canvas, w, h, h * 0.74f, Pal.HillFar);
+        Hill(canvas, w, h, h * 0.84f, Pal.Hill);
+    }
+
+    static void Hill(ICanvas canvas, float w, float h, float top, Color color)
+    {
+        var path = new PathF();
+        path.MoveTo(0, h);
+        path.LineTo(0, top + 40);
+        path.CurveTo(w * 0.25f, top - 50, w * 0.45f, top + 60, w * 0.7f, top + 10);
+        path.CurveTo(w * 0.85f, top - 20, w * 0.95f, top + 20, w, top);
+        path.LineTo(w, h);
+        path.Close();
+        canvas.FillColor = color;
+        canvas.FillPath(path);
+    }
+}
+
+public class Backdrop : GraphicsView
+{
+    public Backdrop()
+    {
+        Drawable = new BackdropDrawable();
+        BackgroundColor = Colors.Transparent;
+        InputTransparent = true;
+    }
+}
+
+// пунктир между соседними кружками пути: x0 и x1 — центры кружков
+class DashDrawable(float x0, float x1) : IDrawable
+{
+    public void Draw(ICanvas canvas, RectF rect)
+    {
+        canvas.StrokeColor = Pal.Gray;
+        canvas.StrokeSize = 3;
+        canvas.StrokeLineCap = LineCap.Round;
+        canvas.StrokeDashPattern = new[] { 2f, 3f };
+        var path = new PathF();
+        path.MoveTo(x0, 0);
+        path.CurveTo(x0, rect.Height * 0.6f, x1, rect.Height * 0.4f, x1, rect.Height);
+        canvas.DrawPath(path);
+    }
+}
+
+public class DashLink : GraphicsView
+{
+    public DashLink(double x0, double x1)
+    {
+        Drawable = new DashDrawable((float)x0, (float)x1);
+        BackgroundColor = Colors.Transparent;
+        HeightRequest = 26;
+        Margin = new Thickness(0, -12);
+        InputTransparent = true;
     }
 }
 
@@ -181,7 +275,7 @@ public abstract class BasePage : ContentPage
     protected BasePage(bool hideTabs)
     {
         isTab = !hideTabs;
-        BackgroundColor = Pal.Paper;
+        BackgroundColor = Pal.Bg;
         Shell.SetNavBarIsVisible(this, false);
         NavigationPage.SetHasNavigationBar(this, false);
         if (hideTabs) Shell.SetTabBarIsVisible(this, false);
@@ -195,8 +289,9 @@ public abstract class BasePage : ContentPage
         this.body = body;
         ApplyWidth();
         Root.Children.Clear();
+        Root.Children.Add(new Backdrop());
         Root.Children.Add(body);
-        Root.Children.Add(new Scanlines());
+        if (Ui.Retro) Root.Children.Add(new Scanlines());
         Content = Root;
     }
 

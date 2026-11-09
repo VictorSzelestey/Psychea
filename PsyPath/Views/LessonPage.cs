@@ -27,7 +27,7 @@ public class LessonPage : BasePage
     readonly Bar progress = new(Pal.Green);
     readonly VerticalStackLayout body = new() { Spacing = 12, Padding = new Thickness(18, 12, 18, 24) };
     readonly ScrollView scroll = new();
-    readonly Btn actionBtn = new("ПРОВЕРИТЬ", Pal.Amber);
+    readonly Btn actionBtn = new("ПРОВЕРИТЬ", Pal.Violet, Pal.Paper);
     readonly Border feedback;
     readonly Label fbTitle = Ui.Text("", 18, Pal.Ink, true);
     readonly Label fbText = Ui.Text("", 13, Pal.Ink);
@@ -164,7 +164,7 @@ public class LessonPage : BasePage
 
         feedback.IsVisible = false;
         actionBtn.Text = "ПРОВЕРИТЬ";
-        actionBtn.SetColors(Pal.Amber, Pal.Ink);
+        actionBtn.SetColors(Pal.Violet, Pal.Paper);
         actionBtn.Enabled = false;
 
         body.Children.Clear();
@@ -345,11 +345,12 @@ public class LessonPage : BasePage
         var order = Enumerable.Range(0, opts.Count).OrderBy(_ => rnd.Next()).ToList();
         var rows = new Dictionary<int, Border>();
         int selected = -1;
+        bool icons = Icons.ForAll(opts);
 
         foreach (int idx in order)
         {
             int myIdx = idx;
-            var row = Ui.Card(Ui.Text(opts[idx], 15), Pal.Paper, 13);
+            var row = Ui.Card(Ui.Term(opts[idx], 15, icons), Pal.Paper, 13);
             rows[idx] = row;
 
             var tap = new TapGestureRecognizer();
@@ -456,10 +457,11 @@ public class LessonPage : BasePage
             }
         }
 
+        bool icons = Icons.ForAll(left.Select(x => x.text));
         foreach (var item in left)
         {
             int id = item.id;
-            var row = Ui.Card(Ui.Text(item.text, 13), Pal.Paper, 10);
+            var row = Ui.Card(Ui.Term(item.text, 13, icons), Pal.Paper, 10);
             lRows[id] = row;
             var tap = new TapGestureRecognizer();
             tap.Tapped += (s, e) =>
@@ -569,7 +571,7 @@ public class LessonPage : BasePage
         {
             Placeholder = "ОТВЕТ...",
             PlaceholderColor = Pal.Ink2,
-            FontFamily = "Mono",
+            FontFamily = "Body",
             FontSize = 16 * Ui.Scale,
             TextColor = Pal.Ink,
             BackgroundColor = Colors.Transparent,
@@ -696,7 +698,7 @@ public class LessonPage : BasePage
         var card = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(0, 0, 0, 6), BackgroundColor = Pal.Paper };
         card.Children.Add(new Glitch(lesson != null ? "УРОК ПРОЙДЕН" : "ПОВТОР ПРОЙДЕН", 26));
         card.Children.Add(Ui.Text("▶ " + title.ToUpperInvariant(), 12, Pal.Ink2, true));
-        card.Children.Add(mistakes == 0 ? Ui.Mood("love", 170) : Ui.Mascot(170, idle: true));
+        card.Children.Add(Ui.Mascot(170, idle: true));
 
         var stats = new Grid
         {
@@ -716,7 +718,7 @@ public class LessonPage : BasePage
             var number = Ui.Text("", 20, Pal.Ink, true, TextAlignment.Center);
             Anim.CountUp(number, value, format);
             box.Children.Add(number);
-            var card = Ui.Box(box, fill, 10, 3);
+            var card = Ui.Box(box, fill, 10);
             Grid.SetColumn(card, col);
             return card;
         }

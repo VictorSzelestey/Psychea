@@ -23,6 +23,20 @@ public static class Settings
         set => Preferences.Default.Set("set_still", value);
     }
 
+    // эффекты VHS: строки развёртки, полоски, сдвиг цветов в заголовках
+    public static bool Retro
+    {
+        get => Preferences.Default.Get("set_retro", true);
+        set => Preferences.Default.Set("set_retro", value);
+    }
+
+    // раз в сутки при запуске проверять, вышла ли новая версия
+    public static bool AutoUpdate
+    {
+        get => Preferences.Default.Get("set_autoupdate", true);
+        set => Preferences.Default.Set("set_autoupdate", value);
+    }
+
     public static bool Reminders
     {
         get => Preferences.Default.Get("set_remind", true);

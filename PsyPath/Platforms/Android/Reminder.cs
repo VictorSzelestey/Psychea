@@ -61,7 +61,7 @@ public class ReminderReceiver : BroadcastReceiver
         var open = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName!);
         var tap = open == null ? null : PendingIntent.GetActivity(context, 0, open, PendingIntentFlags.Immutable);
 
-        // одноцветный значок уведомления; если ресурса нет — значок приложения
+        // одноцветная кассета; если ресурса нет — значок приложения
         int icon = context.Resources?.GetIdentifier("ic_notify", "drawable", context.PackageName) ?? 0;
         if (icon == 0) icon = context.ApplicationInfo?.Icon ?? Android.Resource.Drawable.IcDialogInfo;
 

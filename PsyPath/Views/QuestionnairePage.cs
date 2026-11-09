@@ -40,7 +40,7 @@ public class QuestionnairePage : BasePage
         if (!string.IsNullOrEmpty(quiz.Source))
             stack.Children.Add(Ui.Text("Источник: " + quiz.Source, 11, Pal.Ink2));
 
-        var go = new Btn("НАЧАТЬ ▶", Pal.RedInk, Pal.Paper);
+        var go = new Btn("НАЧАТЬ ▶", Pal.Violet, Pal.Paper);
         go.Clicked += async (s, e) => await ShowQuestion();
         stack.Children.Add(go);
 
@@ -62,7 +62,7 @@ public class QuestionnairePage : BasePage
 
         var head = new VerticalStackLayout { Spacing = 0 };
         head.Children.Add(Ui.Stripes(4));
-        head.Children.Add(new Bar(Pal.Amber) { Value = (double)index / quiz.Questions.Count, Margin = new Thickness(18, 12, 18, 0) });
+        head.Children.Add(new Bar(Pal.Violet) { Value = (double)index / quiz.Questions.Count, Margin = new Thickness(18, 12, 18, 0) });
         var counter = Ui.Text($"ВОПРОС {index + 1:00}/{quiz.Questions.Count}", 11, Pal.Ink2, true, TextAlignment.End);
         counter.Margin = new Thickness(18, 4, 18, 0);
         head.Children.Add(counter);
@@ -133,7 +133,7 @@ public class QuestionnairePage : BasePage
         if (!string.IsNullOrEmpty(quiz.Disclaimer))
             stack.Children.Add(Ui.Text(quiz.Disclaimer, 11, Pal.Ink2));
 
-        var done = new Btn("ГОТОВО", Pal.Amber);
+        var done = new Btn("ГОТОВО", Pal.Violet, Pal.Paper);
         done.Clicked += async (s, e) => await Pop();
         stack.Children.Add(done);
 

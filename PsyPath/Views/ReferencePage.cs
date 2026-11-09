@@ -16,7 +16,7 @@ public class ReferencePage : BasePage
             Placeholder = "ПОИСК ТЕРМИНА...",
             PlaceholderColor = Pal.Ink2,
             TextColor = Pal.Ink,
-            FontFamily = "Mono",
+            FontFamily = "Body",
             FontSize = 14 * Ui.Scale,
             BackgroundColor = Colors.Transparent
         };
@@ -71,7 +71,7 @@ public class ReferencePage : BasePage
     {
         int due = Practice.DueCards;
         cardsInfo.Text = due > 0
-            ? $"К повтору сегодня: {due}. Термин → определение, «знаю» или «не знаю»."
+            ? $"К повтору сегодня: {due}. Термин → определение, потом оцени, насколько легко вспомнил."
             : "На сегодня всё повторено" + (Practice.NextCardDate() is { } d ? $", следующие — {d}." : ".");
         RebuildList();
     }
@@ -86,7 +86,6 @@ public class ReferencePage : BasePage
 
         if (entries.Count == 0)
         {
-            listBox.Children.Add(Ui.Mood("confused", 100));
             listBox.Children.Add(Ui.Text("НИЧЕГО НЕ НАЙДЕНО", 13, Pal.Ink2, true, TextAlignment.Center));
             return;
         }

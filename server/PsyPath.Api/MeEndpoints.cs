@@ -9,6 +9,7 @@ namespace PsyPath.Api;
 public record LessonResultRequest(string LessonId, int Accuracy, int Mistakes, int Xp);
 public record QuestionnaireResultRequest(string QuestionnaireId, string Headline, JsonElement Scores);
 public record DeleteRequest(string Password);
+public record TopRequest(bool Hidden);
 
 public static class MeEndpoints
 {
@@ -19,6 +20,8 @@ public static class MeEndpoints
         g.MapPut("/progress", PutProgress);
         g.MapPost("/lessons", PostLesson);
         g.MapPost("/questionnaires", PostQuestionnaire);
+        g.MapGet("/top", Top);
+        g.MapPut("/top", PutTop);
         // пароль проверяется, поэтому тот же лимит попыток, что у входа
         g.MapPost("/delete", DeleteAccount).RequireRateLimiting("auth");
     }
@@ -123,6 +126,53 @@ public static class MeEndpoints
         cmd.Parameters.AddWithValue(req.QuestionnaireId);
         cmd.Parameters.AddWithValue((req.Headline ?? "").Trim());
         cmd.Parameters.Add(new NpgsqlParameter { Value = req.Scores.GetRawText(), NpgsqlDbType = NpgsqlDbType.Jsonb });
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok(new { saved = true });
+    }
+
+    // топ-50 по XP и своё место; админы, заблокированные, скрывшие себя и новички с 0 XP не участвуют
+    static async Task<IResult> Top(ClaimsPrincipal me, NpgsqlDataSource db)
+    {
+        long id = me.UserId();
+        bool hidden;
+        await using (var cmd = db.CreateCommand("select hide_in_top from psypath.users where id = $1"))
+        {
+            cmd.Parameters.AddWithValue(id);
+            if (await cmd.ExecuteScalarAsync() is not bool h) return Errors.NotFound("Пользователь не найден");
+            hidden = h;
+        }
+
+        await using var list = db.CreateCommand("""
+            with ranked as (
+                select u.id, u.display_name, p.total_xp,
+                       row_number() over (order by p.total_xp desc, u.id) as place
+                from psypath.users u join psypath.progress p on p.user_id = u.id
+                where u.role = 'user' and not u.is_blocked and not u.hide_in_top and p.total_xp > 0
+            )
+            select id, display_name, total_xp, place from ranked
+            where place <= 50 or id = $1
+            order by place
+            """);
+        list.Parameters.AddWithValue(id);
+
+        var top = new List<object>();
+        long? place = null;
+        await using var r = await list.ExecuteReaderAsync();
+        while (await r.ReadAsync())
+        {
+            bool isMe = r.GetInt64(0) == id;
+            long p = r.GetInt64(3);
+            if (isMe) place = p;
+            if (p <= 50) top.Add(new { place = p, name = r.GetString(1), xp = r.GetInt32(2), me = isMe });
+        }
+        return Results.Ok(new { top, place, hidden });
+    }
+
+    static async Task<IResult> PutTop(TopRequest req, ClaimsPrincipal me, NpgsqlDataSource db)
+    {
+        await using var cmd = db.CreateCommand("update psypath.users set hide_in_top = $2 where id = $1");
+        cmd.Parameters.AddWithValue(me.UserId());
+        cmd.Parameters.AddWithValue(req.Hidden);
         await cmd.ExecuteNonQueryAsync();
         return Results.Ok(new { saved = true });
     }

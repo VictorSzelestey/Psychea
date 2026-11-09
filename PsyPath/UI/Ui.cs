@@ -8,6 +8,9 @@ public static class Ui
     // размер текста из настроек (1, 1.15, 1.3); применяется ко всему, что создано после смены
     public static double Scale { get; set; } = Settings.FontScale;
 
+    // копия Settings.Retro: читается при сборке каждого заголовка и экрана
+    public static bool Retro { get; set; } = Settings.Retro;
+
     public static Label Text(string text, double size = 14, Color? color = null, bool bold = false, TextAlignment align = TextAlignment.Start)
     {
         return new Label
@@ -15,45 +18,49 @@ public static class Ui
             Text = text,
             FontSize = size * Scale,
             TextColor = color ?? Pal.Ink,
-            FontFamily = bold ? "MonoBold" : "Mono",
+            FontFamily = bold ? "BodyBold" : "Body",
             HorizontalTextAlignment = align,
             LineBreakMode = LineBreakMode.WordWrap
         };
     }
 
-    public static Border Card(View content, Color? fill = null, double pad = 14, double radius = 8)
+    public static Border Card(View content, Color? fill = null, double pad = 14, double radius = 18)
     {
         return new Border
         {
             Content = content,
             BackgroundColor = fill ?? Pal.Paper,
-            Stroke = new SolidColorBrush(Pal.Ink),
-            StrokeThickness = 2,
+            Stroke = new SolidColorBrush(Pal.Line),
+            StrokeThickness = 1,
             StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(radius) },
             Padding = new Thickness(pad)
         };
     }
 
-    public static Grid Box(View content, Color? fill = null, double pad = 14, double off = 4)
+    // мягкая тень: у каждого элемента своя, один объект нельзя вешать на несколько
+    public static Shadow SoftShadow(Color? color = null) => new()
     {
-        var shadow = new Border
-        {
-            BackgroundColor = Pal.Ink,
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(8) },
-            Margin = new Thickness(off, off, 0, 0)
-        };
-        var top = Card(content, fill, pad);
-        top.Margin = new Thickness(0, 0, off, off);
+        Brush = new SolidColorBrush(color ?? Pal.Ink),
+        Opacity = 0.18f,
+        Radius = 14,
+        Offset = new Point(0, 5)
+    };
 
-        var g = new Grid();
-        g.Children.Add(shadow);
+    // карточка, приподнятая над фоном; нижний отступ — место под тень
+    public static Grid Box(View content, Color? fill = null, double pad = 14)
+    {
+        var top = Card(content, fill, pad);
+        top.Shadow = SoftShadow();
+
+        var g = new Grid { Padding = new Thickness(0, 0, 0, 4) };
         g.Children.Add(top);
         return g;
     }
 
     public static View Stripes(double h = 5)
     {
+        if (!Retro) return new BoxView { HeightRequest = 0, Color = Colors.Transparent };
+
         var g = new Grid { RowSpacing = 0, ColumnSpacing = 0 };
         var cols = new[] { Pal.Amber, Pal.Orange, Pal.Red, Pal.Teal };
         for (int i = 0; i < cols.Length; i++)
@@ -83,18 +90,6 @@ public static class Ui
         return img;
     }
 
-    // маскот с настроением под конкретный экран: файл mood_*.png в Resources/Images
-    public static Image Mood(string name, double height)
-    {
-        return new Image
-        {
-            Source = "mood_" + name + ".png",
-            HeightRequest = height,
-            Aspect = Aspect.AspectFit,
-            HorizontalOptions = LayoutOptions.Center
-        };
-    }
-
     // версия приложения внизу экрана: «ПСИХЕЯ v1.1 (2)»
     public static Label VersionLabel()
     {
@@ -103,28 +98,47 @@ public static class Ui
         return v;
     }
 
-    // табло: светящийся текст на тёмном, слева может быть пиксельная иконка
-    public static Border Lcd(string text, double size = 15, string[]? icon = null)
+    // плашка-«таблетка»: число или короткий текст, слева может быть пиксельная иконка
+    public static Border Lcd(string text, double size = 15, string[]? icon = null, Color? iconColor = null, Color? accent = null)
     {
-        var label = Text(text, size, Pal.Phosphor, true, TextAlignment.Center);
+        var label = Text(text, size, Pal.Ink, true, TextAlignment.Center);
         label.VerticalTextAlignment = TextAlignment.Center;
         View content = label;
         if (icon != null)
         {
             var row = new HorizontalStackLayout { Spacing = 6, HorizontalOptions = LayoutOptions.Center };
-            row.Children.Add(new PixelIcon(icon, Pal.Phosphor, size, Pal.Orange));
+            row.Children.Add(new PixelIcon(icon, iconColor ?? Pal.Violet, size, accent ?? Pal.Orange));
             row.Children.Add(label);
             content = row;
         }
         return new Border
         {
             Content = content,
-            BackgroundColor = Pal.Ink,
-            Stroke = new SolidColorBrush(Pal.Ink),
-            StrokeThickness = 2,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(6) },
-            Padding = new Thickness(6, 8)
+            BackgroundColor = Pal.Paper,
+            Stroke = new SolidColorBrush(Pal.Line),
+            StrokeThickness = 1,
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(20) },
+            Padding = new Thickness(8, 10)
         };
+    }
+
+    // текст варианта ответа; withIcon — слева смысловая иконка термина
+    public static View Term(string text, double size, bool withIcon)
+    {
+        var label = Text(text, size);
+        var icon = withIcon ? Icons.ForTerm(text) : null;
+        if (icon == null) return label;
+
+        label.VerticalTextAlignment = TextAlignment.Center;
+        var row = new Grid
+        {
+            ColumnSpacing = 8,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) }
+        };
+        row.Children.Add(new PixelIcon(icon, Pal.Violet, 20, Pal.Orange));
+        Grid.SetColumn(label, 1);
+        row.Children.Add(label);
+        return row;
     }
 
     public static void OnTap(View v, Action action)

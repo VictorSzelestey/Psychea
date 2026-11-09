@@ -16,7 +16,7 @@ public class RefEntryPage : AdminBase
         s.Children.Add(Ui.Box(box, Pal.Paper, 14));
         s.Children.Add(Ui.Text("Учебные материалы. Не клиническая диагностика.", 11, Pal.Ink2));
 
-        var back = new Btn("НАЗАД К ЗАДАНИЮ ◀", Pal.Amber);
+        var back = new Btn("НАЗАД К ЗАДАНИЮ ◀", Pal.Violet, Pal.Paper);
         back.Clicked += async (o, e) => await Pop();
         s.Children.Add(back);
 

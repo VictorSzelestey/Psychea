@@ -71,7 +71,7 @@ public class AdminContentPage : AdminBase
             for (int i = 0; i < items.Count; i++)
                 AddQuiz(stack, items[i]!, i);
 
-            var add = new Btn("+ НОВЫЙ ОПРОСНИК", Pal.Amber);
+            var add = new Btn("+ НОВЫЙ ОПРОСНИК", Pal.Violet, Pal.Paper);
             add.Clicked += async (s, e) =>
             {
                 var quiz = new Questionnaire

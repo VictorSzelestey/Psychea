@@ -64,7 +64,7 @@ public class AdminQuestionPage : AdminFormPage
         }, TextAlignment.Center));
 
         var bottom = new VerticalStackLayout { Padding = new Thickness(16, 8, 16, 12), BackgroundColor = Pal.Paper };
-        var ok = new Btn("ГОТОВО ◀", Pal.Amber);
+        var ok = new Btn("ГОТОВО ◀", Pal.Violet, Pal.Paper);
         ok.Clicked += async (o, e) => await Leave();
         bottom.Children.Add(ok);
 

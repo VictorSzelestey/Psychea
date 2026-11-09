@@ -20,7 +20,7 @@ public static class Form
             var editor = new Editor
             {
                 Text = value,
-                FontFamily = "Mono",
+                FontFamily = "Body",
                 FontSize = 14 * Ui.Scale,
                 TextColor = Pal.Ink,
                 BackgroundColor = Colors.Transparent,
@@ -34,7 +34,7 @@ public static class Form
             var entry = new Entry
             {
                 Text = value,
-                FontFamily = "Mono",
+                FontFamily = "Body",
                 FontSize = 14 * Ui.Scale,
                 TextColor = Pal.Ink,
                 BackgroundColor = Colors.Transparent
@@ -85,7 +85,7 @@ public static class Form
         var entry = new Entry
         {
             Text = text,
-            FontFamily = "Mono",
+            FontFamily = "Body",
             FontSize = 14 * Ui.Scale,
             TextColor = Pal.Ink,
             BackgroundColor = Colors.Transparent,

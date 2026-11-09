@@ -15,7 +15,7 @@ public class DeleteAccountPage : AdminBase
         password = new Entry
         {
             IsPassword = true,
-            FontFamily = "Mono",
+            FontFamily = "Body",
             FontSize = 15 * Ui.Scale,
             TextColor = Pal.Ink,
             BackgroundColor = Colors.Transparent

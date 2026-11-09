@@ -28,7 +28,11 @@ public static class Api
     public static ApiUser? User { get; private set; }
     public static bool LoggedIn => token != null && User != null;
 
-    public static string BaseUrl => DefaultUrl;
+    public static string BaseUrl
+    {
+        get => Preferences.Default.Get("api_url", DefaultUrl);
+        set => Preferences.Default.Set("api_url", value.Trim().TrimEnd('/'));
+    }
 
     public static async Task RestoreSession()
     {
@@ -76,7 +80,17 @@ public static class Api
         await SecureStorage.Default.SetAsync("token", token!);
     }
 
+    // новый токен вместо старого: пока приложение запускают, сессия не истекает
+    public static async Task<ApiResult> RefreshSession()
+    {
+        var r = await Send(HttpMethod.Post, "/api/auth/refresh");
+        if (r.Ok) await SetSession(r.Body);
+        return r;
+    }
+
     public static Task<ApiResult> Me() => Send(HttpMethod.Get, "/api/me");
+    public static Task<ApiResult> Top() => Send(HttpMethod.Get, "/api/me/top");
+    public static Task<ApiResult> SetTopHidden(bool hidden) => Send(HttpMethod.Put, "/api/me/top", new { hidden });
     public static Task<ApiResult> DeleteAccount(string password) => Send(HttpMethod.Post, "/api/me/delete", new { password });
 
     // ProgressData уходит как есть, сервер сам берёт из него числа для статистики
@@ -135,7 +149,7 @@ public static class Api
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or UriFormatException)
         {
-            return new ApiResult(false, 0, "Нет связи с сервером " + BaseUrl);
+            return new ApiResult(false, 0, "Нет связи с сервером");
         }
     }
 }

@@ -3,12 +3,30 @@ using PsyPath.UI;
 
 namespace PsyPath.Views;
 
-// настройки телефона: звук, размер текста, анимации, напоминание о серии
+// настройки телефона: звук, размер текста, анимации, напоминание о серии, обновления, сброс и удаление
 public class SettingsPage : AdminBase
 {
     readonly double fontAtOpen = Ui.Scale;
+    readonly bool retroAtOpen = Ui.Retro;
+    readonly Label updateStatus = Ui.Text("", 12, Pal.Ink2, true, TextAlignment.Center);
+    // обновление, которое пользователь уже согласился поставить при запуске приложения
+    AppUpdate? pending;
+    bool updating;
 
-    public SettingsPage() => Build();
+    public SettingsPage(AppUpdate? pending = null)
+    {
+        this.pending = pending;
+        Build();
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        if (pending == null) return;
+        var update = pending;
+        pending = null;
+        _ = Install(update);
+    }
 
     void Build()
     {
@@ -30,6 +48,14 @@ public class SettingsPage : AdminBase
                 Build();
             }));
         s.Children.Add(Ui.Text("Так выглядит текст задания.", 15));
+
+        s.Children.Add(Form.Choice("РЕТРО-РЕЖИМ", OnOff, Ui.Retro ? "1" : "0", v =>
+        {
+            Ui.Retro = v == "1";
+            Settings.Retro = Ui.Retro;
+            Build();
+        }));
+        s.Children.Add(Form.Hint("Эффект видеокассеты: строки развёртки, цветные полоски и сдвиг цветов в заголовках."));
 
         s.Children.Add(Form.Choice("АНИМАЦИИ", OnOff, Anim.Still ? "0" : "1", v =>
         {
@@ -59,15 +85,84 @@ public class SettingsPage : AdminBase
             }));
         s.Children.Add(Form.Hint("Приходит, только если в этот день ты ещё не занимался. Серия сгорает в полночь."));
 
+        s.Children.Add(Form.Section("ДАННЫЕ"));
+        s.Children.Add(Form.Link("СБРОСИТЬ ПРОГРЕСС", Pal.RedInk, async () =>
+        {
+            bool yes = await Dlg.Confirm(this, "СБРОС", "Весь прогресс будет удалён. Продолжить?", "СБРОСИТЬ", "ОТМЕНА");
+            if (!yes) return;
+            AppState.ResetAll();
+            await SwitchRoot(Start.Home());
+        }, TextAlignment.Center));
+        if (Api.User != null)
+            s.Children.Add(Form.Link("УДАЛИТЬ АККАУНТ", Pal.RedInk, async () => await Push(new DeleteAccountPage()), TextAlignment.Center));
+
+        s.Children.Add(Form.Section("ОБНОВЛЕНИЯ"));
+        s.Children.Add(Form.Choice("АВТООБНОВЛЕНИЕ", OnOff, Settings.AutoUpdate ? "1" : "0", v => Settings.AutoUpdate = v == "1"));
+        s.Children.Add(Form.Hint("Раз в сутки при запуске приложение проверяет новую версию и предлагает её установить."));
+
+        var check = new Btn("ПРОВЕРИТЬ ОБНОВЛЕНИЯ", Pal.Violet, Pal.Paper, 15);
+        check.Clicked += async (o, e) => await CheckUpdates();
+        s.Children.Add(check);
+        // подпись одна на все пересборки экрана: на неё пишет идущая проверка
+        (updateStatus.Parent as Layout)?.Children.Remove(updateStatus);
+        s.Children.Add(updateStatus);
+        s.Children.Add(Ui.VersionLabel());
+
         Show("НАСТРОЙКИ", s);
     }
 
     static readonly (string, string)[] OnOff = { ("1", "ВКЛ"), ("0", "ВЫКЛ") };
 
-    // новый размер текста нужен всем экранам — пересобираем вкладки и возвращаемся в профиль
+    void ShowUpdate(string text, Color color)
+    {
+        updateStatus.Text = text;
+        updateStatus.TextColor = color;
+    }
+
+    async Task CheckUpdates()
+    {
+        if (updating) return;
+        updating = true;
+        ShowUpdate("Проверяю…", Pal.Ink2);
+        var check = await Updater.Check();
+        updating = false;
+
+        if (!check.Ok)
+        {
+            ShowUpdate(check.Error, Pal.RedInk);
+            return;
+        }
+        if (check.Update == null)
+        {
+            ShowUpdate("Установлена последняя версия", Pal.Ink2);
+            return;
+        }
+
+        ShowUpdate($"Доступна версия {check.Update.Version}", Pal.Ink2);
+        bool yes = await Dlg.Confirm(this, "ОБНОВЛЕНИЕ", $"Доступна версия {check.Update.Version}. Скачать и установить?", "ОБНОВИТЬ", "ПОЗЖЕ");
+        if (yes) await Install(check.Update);
+    }
+
+    async Task Install(AppUpdate update)
+    {
+        if (updating) return;
+        updating = true;
+        ShowUpdate("Скачиваю…", Pal.Ink2);
+        string? error = await Updater.DownloadAndInstall(update, percent =>
+            MainThread.BeginInvokeOnMainThread(() => ShowUpdate($"Скачиваю… {percent}%", Pal.Ink2)));
+        updating = false;
+        // процент мог прийти из очереди уже после завершения, поэтому итог пишем в следующем проходе
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (error != null) ShowUpdate(error, Pal.RedInk);
+            else ShowUpdate("Подтверди установку в окне Android", Pal.Ink2);
+        });
+    }
+
+    // новый размер текста и ретро-режим нужны всем экранам — пересобираем вкладки и возвращаемся в профиль
     protected override async Task Leave()
     {
-        if (Ui.Scale != fontAtOpen)
+        if (Ui.Scale != fontAtOpen || Ui.Retro != retroAtOpen)
             await SwitchRoot(new AppShell(AppShell.ProfileTab));
         else
             await Pop();

@@ -25,7 +25,7 @@ public class LoginPage : BasePage
         Placeholder = placeholder,
         PlaceholderColor = Pal.Ink2,
         TextColor = Pal.Ink,
-        FontFamily = "Mono",
+        FontFamily = "Body",
         FontSize = 15 * Ui.Scale,
         IsPassword = secret,
         IsSpellCheckEnabled = false,
@@ -43,7 +43,7 @@ public class LoginPage : BasePage
 
         var stack = new VerticalStackLayout { Spacing = 12, Padding = new Thickness(20, 16, 20, 28) };
         stack.Children.Add(new Glitch(register ? "РЕГИСТРАЦИЯ" : "ВХОД", 26));
-        stack.Children.Add(Ui.Mood("study", IsLandscape ? 80 : 130));
+        stack.Children.Add(Ui.Mascot(IsLandscape ? 80 : 130, idle: true));
         // подпись над полем всегда видна, подсказка внутри поля — только пример
         stack.Children.Add(Labeled("ЛОГИН", login, register ? "3–32 символа: латиница, цифры, _ . -" : null));
         stack.Children.Add(Labeled("ПАРОЛЬ", password, null));
@@ -52,7 +52,7 @@ public class LoginPage : BasePage
 
         stack.Children.Add(status);
 
-        var go = new Btn(register ? "СОЗДАТЬ АККАУНТ ▶" : "ВОЙТИ ▶", Pal.Amber);
+        var go = new Btn(register ? "СОЗДАТЬ АККАУНТ ▶" : "ВОЙТИ ▶", Pal.Violet, Pal.Paper);
         go.Clicked += async (s, e) => await Submit();
         stack.Children.Add(go);
 
@@ -64,7 +64,16 @@ public class LoginPage : BasePage
             await SwapBody(Build());
         }, TextAlignment.Center));
 
-        stack.Children.Add(Ui.VersionLabel());
+        // адрес сервера пользователям не показываем; разработчик меняет его пятью нажатиями на версию
+        var version = Ui.VersionLabel();
+        int taps = 0;
+        Ui.OnTap(version, async () =>
+        {
+            if (++taps < 5) return;
+            taps = 0;
+            await EditServer();
+        });
+        stack.Children.Add(version);
 
         var root = new Grid { RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) } };
         root.Children.Add(Ui.Stripes(4));
@@ -112,5 +121,17 @@ public class LoginPage : BasePage
     {
         status.Text = text;
         status.TextColor = color;
+    }
+
+    async Task EditServer()
+    {
+        string? url = await DisplayPromptAsync("СЕРВЕР",
+            "Адрес API. Эмулятор: http://10.0.2.2:5080, телефон: http://<IP компьютера>:5080",
+            "OK", "ОТМЕНА", initialValue: Api.BaseUrl, keyboard: Keyboard.Url);
+        if (string.IsNullOrWhiteSpace(url)) return;
+        if (Uri.TryCreate(url.Trim(), UriKind.Absolute, out var u) && (u.Scheme == "http" || u.Scheme == "https"))
+            Api.BaseUrl = url;
+        else
+            Show("Адрес должен начинаться с http:// или https://", Pal.RedInk);
     }
 }

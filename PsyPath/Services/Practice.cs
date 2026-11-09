@@ -13,8 +13,8 @@ public static class Practice
     // в прогрессе хранится не больше, чтобы он не разрастался (сервер принимает до 200 КБ)
     const int MaxMistakes = 150;
 
-    // интервалы повтора карточек в днях по номеру коробки
-    static readonly int[] Intervals = { 0, 1, 3, 7, 14, 30 };
+    // промежутки прежней системы по номеру коробки: с них продолжаются уже начатые карточки
+    static readonly int[] LegacyIntervals = { 0, 1, 3, 7, 14, 30 };
 
     static readonly Random Rnd = new();
 
@@ -165,7 +165,9 @@ public static class Practice
         string today = Today;
         var due = AppState.Reference
             .Where(e => cards.TryGetValue(e.Term, out var c) && string.CompareOrdinal(c.Due, today) <= 0)
-            .OrderBy(e => cards[e.Term].Due)
+            // среди одинаково просроченных первыми идут самые трудные
+            .OrderBy(e => cards[e.Term].Due, StringComparer.Ordinal)
+            .ThenBy(e => cards[e.Term].Ease)
             .ToList();
         var fresh = AppState.Reference.Where(e => !cards.ContainsKey(e.Term));
         return due.Concat(fresh).Take(size).ToList();
@@ -182,12 +184,24 @@ public static class Practice
             : null;
     }
 
-    // «знаю» — в следующую коробку и повтор позже, «не знаю» — в первую и повтор сегодня
-    public static void Answer(RefEntry e, bool know)
+    static int LastDays(CardState c) =>
+        c.Interval > 0 ? c.Interval : LegacyIntervals[Math.Clamp(c.Box, 0, LegacyIntervals.Length - 1)];
+
+    // что будет с карточкой при этой оценке: подпись на кнопке и сам расчёт используют одно и то же
+    public static CardPlan PlanFor(RefEntry e, CardRating rating)
     {
+        var c = AppState.P.Cards.GetValueOrDefault(e.Term) ?? new CardState();
+        return CardScheduler.Next(LastDays(c), c.Ease, rating);
+    }
+
+    public static void Answer(RefEntry e, CardRating rating)
+    {
+        var plan = PlanFor(e, rating);
         var cards = AppState.P.Cards;
         if (!cards.TryGetValue(e.Term, out var c)) cards[e.Term] = c = new CardState();
-        c.Box = know ? Math.Min(c.Box + 1, Intervals.Length - 1) : 0;
-        c.Due = DateTime.Today.AddDays(Intervals[c.Box]).ToString("yyyy-MM-dd");
+        c.Box = 0;
+        c.Interval = plan.Days;
+        c.Ease = plan.Ease;
+        c.Due = DateTime.Today.AddDays(plan.Days).ToString("yyyy-MM-dd");
     }
 }

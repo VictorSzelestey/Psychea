@@ -223,6 +223,9 @@ public class ProgressData
 
 public class CardState
 {
+    // коробка из прежней системы: нужна, только пока у карточки нет Interval
     public int Box { get; set; }
     public string Due { get; set; } = "";
+    public int Interval { get; set; }
+    public double Ease { get; set; } = Services.CardScheduler.StartEase;
 }

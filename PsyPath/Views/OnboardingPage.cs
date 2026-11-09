@@ -66,9 +66,7 @@ public class OnboardingPage : BasePage
 
         var mid = new VerticalStackLayout { Spacing = 8, VerticalOptions = LayoutOptions.Center };
         mid.Children.Add(Bubble(Slides[slide]));
-        mid.Children.Add(slide == Slides.Length - 1
-            ? Ui.Mood("study", IsLandscape ? 110 : 260)
-            : Ui.Mascot(IsLandscape ? 110 : 260, idle: true));
+        mid.Children.Add(Ui.Mascot(IsLandscape ? 110 : 260, idle: true));
         // в горизонтальном режиме по высоте может не влезть
         View center = IsLandscape ? new ScrollView { Content = mid } : mid;
         Grid.SetRow(center, 1);
@@ -77,7 +75,7 @@ public class OnboardingPage : BasePage
         var bottom = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(20, 8, 20, 24) };
         string dots = string.Join(" ", Enumerable.Range(0, Slides.Length).Select(i => i == slide ? "●" : "○"));
         bottom.Children.Add(Ui.Text(dots, 16, Pal.Ink, true, TextAlignment.Center));
-        var next = new Btn("ДАЛЕЕ ▶", Pal.Amber);
+        var next = new Btn("ДАЛЕЕ ▶", Pal.Violet, Pal.Paper);
         next.Clicked += async (s, e) =>
         {
             if (busy) return;

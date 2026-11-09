@@ -81,7 +81,7 @@ public class ProfilePage : DataPage
         lvBox.Children.Add(lvRow);
         lvBox.Children.Add(Ui.Text($"РЕЙТИНГ {(int)p.Rating}", 13, Pal.Ink2, true, TextAlignment.Center));
         double span = Math.Max(1, lv.RatingTo - lv.RatingFrom + 1);
-        lvBox.Children.Add(new Bar(Pal.Amber) { Value = (p.Rating - lv.RatingFrom) / span });
+        lvBox.Children.Add(new Bar(Pal.Violet) { Value = (p.Rating - lv.RatingFrom) / span });
         lvBox.Children.Add(Ui.Text(lv.About, 12, Pal.Ink, false, TextAlignment.Center));
         stack.Children.Add(Ui.Box(lvBox, Pal.Paper, 14));
 
@@ -108,6 +108,13 @@ public class ProfilePage : DataPage
 
         stack.Children.Add(Ui.Text($"ЦЕЛЬ ДНЯ: {p.DailyGoalMin} МИН (≈{AppState.DailyGoalXp} XP)", 12, Pal.Ink2, true));
 
+        if (user != null)
+        {
+            var topBtn = new Btn("ТОП ИГРОКОВ ▶", Pal.Violet, Pal.Paper, 15);
+            topBtn.Clicked += async (s, e) => await Push(new TopPage());
+            stack.Children.Add(topBtn);
+        }
+
         var settings = new Btn("НАСТРОЙКИ ▶", Pal.Paper2, null, 15);
         settings.Clicked += async (s, e) => await Push(new SettingsPage());
         stack.Children.Add(settings);
@@ -115,7 +122,6 @@ public class ProfilePage : DataPage
         var hist = new VerticalStackLayout { Spacing = 10 };
         hist.Children.Add(Ui.Text("ИСТОРИЯ ОПРОСНИКОВ", 12, Pal.RedInk, true));
         if (p.History.Count == 0)
-            hist.Children.Add(Ui.Mood("sleep", 90));
             hist.Children.Add(Ui.Text("Пока пусто. Пройди любой опросник на первой вкладке.", 12, Pal.Ink2));
         foreach (var h in p.History.Take(15))
         {
@@ -149,14 +155,6 @@ public class ProfilePage : DataPage
 
         stack.Children.Add(Ui.Text("Психея — учебный тренажёр. Это не клиническая диагностика. Результаты опросников носят учебный характер.", 11, Pal.Ink2));
 
-        stack.Children.Add(Form.Link("СБРОСИТЬ ПРОГРЕСС", Pal.RedInk, async () =>
-        {
-            bool yes = await Dlg.Confirm(this, "СБРОС", "Весь прогресс будет удалён. Продолжить?", "СБРОСИТЬ", "ОТМЕНА");
-            if (!yes) return;
-            AppState.ResetAll();
-            await SwitchRoot(Start.Home());
-        }, TextAlignment.Center));
-
         stack.Children.Add(Form.Link("ВЫЙТИ ИЗ АККАУНТА", Pal.Ink2, async () =>
         {
             // без сети запрос висел бы до 10 с — ждём отправку не дольше 3 с
@@ -171,9 +169,6 @@ public class ProfilePage : DataPage
             AppState.ResetAll();
             await SwitchRoot(new NavigationPage(new LoginPage()));
         }, TextAlignment.Center));
-
-        if (user != null)
-            stack.Children.Add(Form.Link("УДАЛИТЬ АККАУНТ", Pal.RedInk, async () => await Push(new DeleteAccountPage()), TextAlignment.Center));
 
         stack.Children.Add(Ui.VersionLabel());
 

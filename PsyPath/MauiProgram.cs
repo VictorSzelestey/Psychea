@@ -11,6 +11,8 @@ public static class MauiProgram
             {
                 fonts.AddFont("DejaVuSansMono.ttf", "Mono");
                 fonts.AddFont("DejaVuSansMono-Bold.ttf", "MonoBold");
+                fonts.AddFont("Nunito-Regular.ttf", "Body");
+                fonts.AddFont("Nunito-ExtraBold.ttf", "BodyBold");
             });
 
         return builder.Build();

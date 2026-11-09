@@ -23,6 +23,12 @@ curl -s http://127.0.0.1:5080/api/health
 
 ## Обновить
 
+Если в `db/` появился новый скрипт, сначала примени его на сервере, потом обновляй API:
+
+```bash
+docker exec -i postgres_container psql -U root -d Psichey < 002_top.sql
+```
+
 Собирать на сервере не нужно (мало памяти). На ПК:
 
 ```powershell
