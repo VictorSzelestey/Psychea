@@ -46,7 +46,6 @@ public class ProfilePage : DataPage
         };
 
         var top = new VerticalStackLayout { Spacing = 0 };
-        top.Children.Add(Ui.Stripes(4));
         var title = new Heading("ПРОФИЛЬ", 24);
         title.Margin = new Thickness(18, 10, 18, 6);
         top.Children.Add(title);
@@ -123,7 +122,7 @@ public class ProfilePage : DataPage
         hist.Children.Add(Ui.Text("ИСТОРИЯ ОПРОСНИКОВ", 12, Pal.RedInk, true));
         if (p.History.Count == 0)
             hist.Children.Add(Ui.Mood("sleep", 90));
-            hist.Children.Add(Ui.Text("Пока пусто. Пройди любой опросник на первой вкладке.", 12, Pal.Ink2));
+            hist.Children.Add(Ui.Text("Пока пусто. Пройди любой опросник на вкладке «Опросники».", 12, Pal.Ink2));
         foreach (var h in p.History.Take(15))
         {
             var item = new VerticalStackLayout { Spacing = 2 };

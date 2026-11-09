@@ -67,7 +67,6 @@ public class LoginPage : BasePage
         stack.Children.Add(Ui.VersionLabel());
 
         var root = new Grid { RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) } };
-        root.Children.Add(Ui.Stripes(4));
         var scroll = new ScrollView { Content = stack };
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);

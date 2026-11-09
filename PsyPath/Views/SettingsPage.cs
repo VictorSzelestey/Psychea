@@ -7,7 +7,6 @@ namespace PsyPath.Views;
 public class SettingsPage : AdminBase
 {
     readonly double fontAtOpen = Ui.Scale;
-    readonly bool retroAtOpen = Ui.Retro;
     readonly Label updateStatus = Ui.Text("", 12, Pal.Ink2, true, TextAlignment.Center);
     // обновление, которое пользователь уже согласился поставить при запуске приложения
     AppUpdate? pending;
@@ -48,14 +47,6 @@ public class SettingsPage : AdminBase
                 Build();
             }));
         s.Children.Add(Ui.Text("Так выглядит текст задания.", 15));
-
-        s.Children.Add(Form.Choice("РЕТРО-РЕЖИМ", OnOff, Ui.Retro ? "1" : "0", v =>
-        {
-            Ui.Retro = v == "1";
-            Settings.Retro = Ui.Retro;
-            Build();
-        }));
-        s.Children.Add(Form.Hint("Эффект видеокассеты: строки развёртки, цветные полоски и моноширинные заголовки."));
 
         s.Children.Add(Form.Choice("АНИМАЦИИ", OnOff, Anim.Still ? "0" : "1", v =>
         {
@@ -159,10 +150,10 @@ public class SettingsPage : AdminBase
         });
     }
 
-    // новый размер текста и ретро-режим нужны всем экранам — пересобираем вкладки и возвращаемся в профиль
+    // новый размер текста нужен всем экранам — пересобираем вкладки и возвращаемся в профиль
     protected override async Task Leave()
     {
-        if (Ui.Scale != fontAtOpen || Ui.Retro != retroAtOpen)
+        if (Ui.Scale != fontAtOpen)
             await SwitchRoot(new AppShell(AppShell.ProfileTab));
         else
             await Pop();

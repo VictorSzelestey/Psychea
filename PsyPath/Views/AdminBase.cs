@@ -43,7 +43,6 @@ public abstract class AdminBase : BasePage
         header.Children.Add(t);
 
         var top = new VerticalStackLayout { Spacing = 0 };
-        top.Children.Add(Ui.Stripes(4));
         top.Children.Add(header);
 
         var root = new Grid

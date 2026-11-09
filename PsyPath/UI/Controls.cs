@@ -119,59 +119,12 @@ public class Bar : Border
     }
 }
 
-// заголовок экрана; mono — моноширинный шрифт VHS, он только в ретро-режиме
+// заголовок экрана
 public class Heading : Grid
 {
-    public Heading(string text, double size = 28, Color? color = null, bool mono = true)
+    public Heading(string text, double size = 28, Color? color = null)
     {
-        var main = Ui.Text(text, size, color ?? Pal.Ink, true);
-        if (mono && Ui.Retro) main.FontFamily = "MonoBold";
-        Children.Add(main);
-    }
-}
-
-class ScanDrawable : IDrawable
-{
-    public void Draw(ICanvas canvas, RectF dirtyRect)
-    {
-        canvas.StrokeColor = new Color(0.24f, 0.17f, 0.39f, 0.07f);
-        canvas.StrokeSize = 1;
-        for (float y = 0; y < dirtyRect.Height; y += 3)
-            canvas.DrawLine(0, y, dirtyRect.Width, y);
-    }
-}
-
-public class Scanlines : Grid
-{
-    const double BandHeight = 34;
-
-    readonly BoxView band = new()
-    {
-        Color = Pal.Cyan,
-        HeightRequest = BandHeight,
-        VerticalOptions = LayoutOptions.Start,
-        Opacity = 0,
-        InputTransparent = true
-    };
-    bool swept;
-
-    public Scanlines()
-    {
-        InputTransparent = true;
-        CascadeInputTransparent = true;
-        Children.Add(new GraphicsView { Drawable = new ScanDrawable(), InputTransparent = true });
-        Children.Add(band);
-        SizeChanged += (s, e) => Sweep();
-    }
-
-    // при появлении экрана по нему один раз проходит полоса «трекинга», как на видеокассете
-    void Sweep()
-    {
-        if (swept || Height <= 0 || Anim.Reduced) return;
-        swept = true;
-        band.Opacity = 0.14;
-        new Animation(y => band.TranslationY = y, -BandHeight, Height, Easing.Linear)
-            .Commit(band, "track", 16, 1400, finished: (v, c) => band.Opacity = 0);
+        Children.Add(Ui.Text(text, size, color ?? Pal.Ink, true));
     }
 }
 
@@ -183,12 +136,32 @@ class BackdropDrawable : IDrawable
         float w = rect.Width, h = rect.Height;
 
         canvas.FillColor = Pal.Hill;
-        canvas.FillCircle(w * 0.84f, 62, 54);
-        canvas.FillCircle(w * 0.62f, 82, 36);
-        canvas.FillCircle(w, 92, 46);
+        canvas.FillCircle(w * 0.84f, 70, 54);
+        canvas.FillCircle(w * 0.62f, 90, 36);
+        canvas.FillCircle(w, 100, 46);
+        canvas.FillCircle(-6, h * 0.46f, 44);
+        canvas.FillCircle(w * 0.14f, h * 0.48f, 30);
+        canvas.FillRoundedRectangle(-20, h * 0.48f, w * 0.34f, 34, 17);
 
-        Hill(canvas, w, h, h * 0.74f, Pal.HillFar);
-        Hill(canvas, w, h, h * 0.84f, Pal.Hill);
+        Mountains(canvas, w, h, h * 0.74f);
+        Hill(canvas, w, h, h * 0.86f, Pal.Hill);
+    }
+
+    static void Mountains(ICanvas canvas, float w, float h, float top)
+    {
+        var path = new PathF();
+        path.MoveTo(0, h);
+        path.LineTo(0, top + 50);
+        path.LineTo(w * 0.17f, top - 14);
+        path.LineTo(w * 0.33f, top + 44);
+        path.LineTo(w * 0.53f, top - 46);
+        path.LineTo(w * 0.72f, top + 40);
+        path.LineTo(w * 0.87f, top - 8);
+        path.LineTo(w, top + 30);
+        path.LineTo(w, h);
+        path.Close();
+        canvas.FillColor = Pal.HillFar;
+        canvas.FillPath(path);
     }
 
     static void Hill(ICanvas canvas, float w, float h, float top, Color color)
@@ -211,6 +184,35 @@ public class Backdrop : GraphicsView
     {
         Drawable = new BackdropDrawable();
         BackgroundColor = Colors.Transparent;
+        InputTransparent = true;
+    }
+}
+
+// штрихи-«лучи» у текущего раздела на пути
+class BurstDrawable : IDrawable
+{
+    public void Draw(ICanvas canvas, RectF rect)
+    {
+        canvas.StrokeColor = Pal.Violet;
+        canvas.StrokeSize = 3.5f;
+        canvas.StrokeLineCap = LineCap.Round;
+        canvas.DrawLine(4, 25, 12, 26);
+        canvas.DrawLine(8, 12, 15, 17);
+        canvas.DrawLine(20, 3, 24, 11);
+    }
+}
+
+public class Burst : GraphicsView
+{
+    public Burst()
+    {
+        Drawable = new BurstDrawable();
+        BackgroundColor = Colors.Transparent;
+        WidthRequest = 30;
+        HeightRequest = 30;
+        Margin = new Thickness(-16, -10, 0, 0);
+        HorizontalOptions = LayoutOptions.Start;
+        VerticalOptions = LayoutOptions.Start;
         InputTransparent = true;
     }
 }
@@ -273,7 +275,6 @@ public abstract class BasePage : ContentPage
         Root.Children.Clear();
         Root.Children.Add(new Backdrop());
         Root.Children.Add(body);
-        if (Ui.Retro) Root.Children.Add(new Scanlines());
         Content = Root;
     }
 

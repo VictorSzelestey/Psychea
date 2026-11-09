@@ -115,7 +115,6 @@ public class LessonPage : BasePage
         header.Children.Add(progress);
 
         var topBox = new VerticalStackLayout { Spacing = 0 };
-        topBox.Children.Add(Ui.Stripes(4));
         topBox.Children.Add(header);
 
         var bottom = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(16, 8, 16, 16), BackgroundColor = Pal.Paper };

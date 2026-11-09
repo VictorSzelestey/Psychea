@@ -8,9 +8,6 @@ public static class Ui
     // размер текста из настроек (1, 1.15, 1.3); применяется ко всему, что создано после смены
     public static double Scale { get; set; } = Settings.FontScale;
 
-    // копия Settings.Retro: читается при сборке каждого заголовка и экрана
-    public static bool Retro { get; set; } = Settings.Retro;
-
     public static Label Text(string text, double size = 14, Color? color = null, bool bold = false, TextAlignment align = TextAlignment.Start)
     {
         return new Label
@@ -54,22 +51,6 @@ public static class Ui
 
         var g = new Grid { Padding = new Thickness(0, 0, 0, 4) };
         g.Children.Add(top);
-        return g;
-    }
-
-    public static View Stripes(double h = 5)
-    {
-        if (!Retro) return new BoxView { HeightRequest = 0, Color = Colors.Transparent };
-
-        var g = new Grid { RowSpacing = 0, ColumnSpacing = 0 };
-        var cols = new[] { Pal.Amber, Pal.Orange, Pal.Red, Pal.Teal };
-        for (int i = 0; i < cols.Length; i++)
-        {
-            g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(h) });
-            var b = new BoxView { Color = cols[i] };
-            Grid.SetRow(b, i);
-            g.Children.Add(b);
-        }
         return g;
     }
 

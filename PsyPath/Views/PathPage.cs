@@ -14,15 +14,19 @@ public enum LessonState
     Mastered
 }
 
+// главный экран: путь из разделов, внутри раздела — его уроки
 public class PathPage : DataPage
 {
     // зигзаг: отступ кружка слева; справа строка держит остаток до MaxOffset, чтобы карточка не вылезла за экран
-    static readonly double[] Offsets = { 0, 40, 12, 46, 6, 34 };
-    const double MaxOffset = 46;
-    const double NodeSize = 72;
+    static readonly double[] Offsets = { 14, 54, 0, 58, 10, 44 };
+    const double MaxOffset = 58;
+    const double SectionSize = 78;
+    const double LessonSize = 58;
 
-    // кнопка текущего урока; пульсирует, только пока вкладка на экране
+    // кнопка текущего раздела; пульсирует, только пока вкладка на экране
     VisualElement? pulsing;
+    // раскрытые разделы переживают пересборку экрана после урока
+    readonly HashSet<int> opened = new();
 
     protected override void Refresh()
     {
@@ -42,9 +46,9 @@ public class PathPage : DataPage
         var target = pulsing;
         target.AbortAnimation("pulse");
         var pulse = new Animation();
-        pulse.Add(0, 0.5, new Animation(v => target.Scale = v, 1, 1.08, Easing.SinInOut));
-        pulse.Add(0.5, 1, new Animation(v => target.Scale = v, 1.08, 1, Easing.SinInOut));
-        pulse.Commit(target, "pulse", 16, 1200, null, null, () => true);
+        pulse.Add(0, 0.5, new Animation(v => target.Scale = v, 1, 1.05, Easing.SinInOut));
+        pulse.Add(0.5, 1, new Animation(v => target.Scale = v, 1.05, 1, Easing.SinInOut));
+        pulse.Commit(target, "pulse", 16, 1400, null, null, () => true);
     }
 
     protected override ScrollView Build()
@@ -59,11 +63,7 @@ public class PathPage : DataPage
         {
             RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) }
         };
-
-        var top = new VerticalStackLayout { Spacing = 0 };
-        top.Children.Add(Ui.Stripes(4));
-        top.Children.Add(Hud(level, lv.Name));
-        root.Children.Add(top);
+        root.Children.Add(Hud(level, lv.Name));
 
         var path = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 12, 18, 32) };
 
@@ -98,31 +98,23 @@ public class PathPage : DataPage
         var review = ReviewCard();
         if (review != null) path.Children.Add(review);
 
+        int place = 0;
         foreach (var sec in AppState.Lessons.Sections)
         {
-            var banner = new VerticalStackLayout { Spacing = 2 };
-            banner.Children.Add(Ui.Text($"Раздел {sec.Id}", 12, Pal.Ink, false));
-            banner.Children.Add(Ui.Text(sec.Title, 17, Pal.Ink, true));
-            path.Children.Add(Ui.Card(banner, Pal.Amber, 12));
-
-            for (int i = 0; i < sec.Lessons.Count; i++)
-            {
-                var l = sec.Lessons[i];
-                if (i > 0) path.Children.Add(new DashLink(CenterOf(i - 1), CenterOf(i)));
-                path.Children.Add(MakeNode(sec, l, i, states[l.Id]));
-            }
+            if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
+            AddSection(path, sec, place, states, level);
+            place++;
         }
 
         var known = AppState.Lessons.Sections.Select(s => s.Id).ToHashSet();
         foreach (var u in AppState.Rating.SectionUnlock.Where(u => !known.Contains(u.Section)))
         {
-            var locked = new VerticalStackLayout { Spacing = 2 };
-            locked.Children.Add(Ui.Text($"▒ РАЗДЕЛ {u.Section:00}  //  LV {u.UnlockLevel}", 10, Pal.Ink2, true));
-            locked.Children.Add(Ui.Text(u.Title.ToUpperInvariant(), 13, Pal.Ink2, true));
-            locked.Children.Add(Ui.Text("СКОРО", 10, Pal.Ink2, true));
-            var card = Ui.Card(locked, Pal.Paper2, 10);
-            card.Opacity = 0.75;
-            path.Children.Add(card);
+            if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
+            int unlock = u.UnlockLevel;
+            var chevron = Chevron(true);
+            path.Children.Add(Node(place, SectionSize, $"Раздел {u.Section}", u.Title, LessonState.Locked, u.Section.ToString(), chevron, async () =>
+                await Dlg.Alert(this, "СКОРО", $"Раздел появится позже и откроется на {unlock} уровне.")));
+            place++;
         }
 
         var scroll = new ScrollView { Content = path };
@@ -133,9 +125,149 @@ public class PathPage : DataPage
         return scroll;
     }
 
-    static double OffsetOf(int idx) => Offsets[idx % Offsets.Length];
+    static double OffsetOf(int place) => Offsets[place % Offsets.Length];
 
-    static double CenterOf(int idx) => OffsetOf(idx) + NodeSize / 2;
+    static double SectionCenter(int place) => OffsetOf(place) + SectionSize / 2;
+
+    static double LessonCenter(int place) => OffsetOf(place) + LessonSize / 2;
+
+    void AddSection(VerticalStackLayout path, Section sec, int place, Dictionary<string, LessonState> states, int level)
+    {
+        var lessonStates = sec.Lessons.Select(l => states[l.Id]).ToList();
+        LessonState state;
+        if (level < AppState.UnlockLevel(sec.Id)) state = LessonState.Locked;
+        else if (lessonStates.Contains(LessonState.Current)) state = LessonState.Current;
+        else if (lessonStates.Count > 0 && lessonStates.All(s => s is LessonState.Done or LessonState.Mastered)) state = LessonState.Done;
+        else state = LessonState.Open;
+
+        var lessons = new VerticalStackLayout { Spacing = 14, IsVisible = opened.Contains(sec.Id) };
+        for (int i = 0; i < sec.Lessons.Count; i++)
+        {
+            if (i > 0) lessons.Children.Add(new DashLink(LessonCenter(i - 1), LessonCenter(i)));
+            lessons.Children.Add(MakeLesson(sec.Lessons[i], i, states[sec.Lessons[i].Id]));
+        }
+
+        var chevron = Chevron(state == LessonState.Locked);
+        chevron.Rotation = lessons.IsVisible ? 90 : 0;
+
+        int id = sec.Id;
+        int unlock = AppState.UnlockLevel(id);
+        var node = Node(place, SectionSize, $"Раздел {sec.Id}", sec.Title, state,
+            state == LessonState.Done ? "✓" : sec.Id.ToString(), chevron, async () =>
+            {
+                if (state == LessonState.Locked)
+                {
+                    await Dlg.Alert(this, "ЗАКРЫТО", $"Раздел откроется на {unlock} уровне.");
+                    return;
+                }
+                bool show = !lessons.IsVisible;
+                lessons.IsVisible = show;
+                if (show) opened.Add(id);
+                else opened.Remove(id);
+                await chevron.Spin(show ? 90 : 0, 160);
+            }, burst: state == LessonState.Current, pulse: state == LessonState.Current);
+
+        path.Children.Add(node);
+        path.Children.Add(lessons);
+    }
+
+    View MakeLesson(Lesson lesson, int idx, LessonState state)
+    {
+        string glyph = state is LessonState.Done or LessonState.Mastered ? "✓" : (idx + 1).ToString();
+        return Node(idx, LessonSize, $"Урок {idx + 1}", lesson.Title, state, glyph, Chevron(state == LessonState.Locked), async () =>
+        {
+            if (state == LessonState.Locked)
+            {
+                await Dlg.Alert(this, "ЗАКРЫТО", "Сначала пройди предыдущие уроки или повысь уровень.");
+                return;
+            }
+            await Push(new LessonPage(lesson));
+        });
+    }
+
+    static Label Chevron(bool locked)
+    {
+        var chevron = Ui.Text("›", 26, locked ? Pal.Ink2 : Pal.Violet, true);
+        chevron.VerticalTextAlignment = TextAlignment.Center;
+        return chevron;
+    }
+
+    // кружок на пути и карточка, заходящая под него
+    View Node(int place, double size, string caption, string title, LessonState state, string glyph, Label chevron, Action tap,
+        bool burst = false, bool pulse = false)
+    {
+        bool isLocked = state == LessonState.Locked;
+        Color fill = state switch
+        {
+            LessonState.Current => Pal.Violet,
+            LessonState.Done => Pal.Amber,
+            LessonState.Mastered => Pal.TealInk,
+            LessonState.Open => Pal.Paper2,
+            _ => Pal.Gray
+        };
+        Color text = state is LessonState.Current or LessonState.Mastered ? Pal.Paper : Pal.Ink;
+
+        View mark;
+        if (isLocked)
+        {
+            mark = new PixelIcon(Icons.Lock, Pal.Paper, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
+        }
+        else
+        {
+            var label = Ui.Text(glyph, size * 0.36, text, true, TextAlignment.Center);
+            // галочки нет в основном шрифте
+            if (glyph == "✓") label.FontFamily = "MonoBold";
+            label.VerticalTextAlignment = TextAlignment.Center;
+            label.HorizontalOptions = LayoutOptions.Center;
+            label.VerticalOptions = LayoutOptions.Center;
+            mark = label;
+        }
+
+        var circle = new Border
+        {
+            Content = mark,
+            BackgroundColor = fill,
+            StrokeThickness = 0,
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(size / 2) },
+            WidthRequest = size,
+            HeightRequest = size,
+            VerticalOptions = LayoutOptions.Center,
+            Shadow = Ui.SoftShadow(Pal.Violet)
+        };
+        if (pulse) pulsing = circle;
+
+        var info = new VerticalStackLayout { Spacing = 1, VerticalOptions = LayoutOptions.Center };
+        info.Children.Add(Ui.Text(caption, 12, Pal.Ink2));
+        info.Children.Add(Ui.Text(title, size > LessonSize ? 16 : 14, isLocked ? Pal.Ink2 : Pal.Ink, true));
+
+        var inner = new Grid
+        {
+            ColumnSpacing = 6,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
+        };
+        inner.Children.Add(info);
+        Grid.SetColumn(chevron, 1);
+        inner.Children.Add(chevron);
+
+        var card = Ui.Card(inner, Pal.Paper, 12, 22);
+        card.Padding = new Thickness(28, 12, 14, 12);
+        card.Margin = new Thickness(-18, 6, 0, 6);
+        card.VerticalOptions = LayoutOptions.Center;
+        card.Shadow = Ui.SoftShadow();
+        Grid.SetColumn(card, 1);
+
+        double left = OffsetOf(place);
+        var node = new Grid
+        {
+            Margin = new Thickness(left, 0, MaxOffset - left, 0),
+            ColumnDefinitions = { new ColumnDefinition(new GridLength(size)), new ColumnDefinition(GridLength.Star) }
+        };
+        node.Children.Add(card);
+        node.Children.Add(circle);
+        if (burst) node.Children.Add(new Burst());
+        Ui.OnTap(node, tap);
+        return node;
+    }
 
     View Hud(int level, string levelName)
     {
@@ -144,41 +276,41 @@ public class PathPage : DataPage
 
         var g = new Grid
         {
-            ColumnSpacing = 6,
-            Padding = new Thickness(18, 10, 18, 0),
+            ColumnSpacing = 8,
+            Padding = new Thickness(18, 12, 18, 0),
             ColumnDefinitions =
             {
-                new ColumnDefinition(new GridLength(48)),
+                new ColumnDefinition(new GridLength(52)),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(new GridLength(48)),
                 new ColumnDefinition(new GridLength(48))
             }
         };
 
         var avatar = new Border
         {
-            Content = Ui.Mascot(58),
+            Content = Ui.Mascot(62),
             BackgroundColor = Pal.Paper,
             Stroke = new SolidColorBrush(Pal.Line),
             StrokeThickness = 2,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(24) },
-            WidthRequest = 48,
-            HeightRequest = 48
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(26) },
+            WidthRequest = 52,
+            HeightRequest = 52
         };
         g.Children.Add(avatar);
 
-        var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 14, Icons.Flame, Pal.Orange, Pal.Yellow);
+        var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 16, Icons.Flame, Pal.Orange, Pal.Yellow);
+        streak.Padding = new Thickness(16, 10);
+        streak.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(streak, 1);
         g.Children.Add(streak);
 
-        var xp = Ui.Lcd(AppState.P.TotalXp.ToString(), 14, Icons.Brain, Pal.Violet, Pal.Amber);
+        var xp = Ui.Lcd(AppState.P.TotalXp.ToString(), 16, Icons.Brain, Pal.Violet, Pal.Amber);
+        xp.Padding = new Thickness(16, 10);
+        xp.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(xp, 2);
         g.Children.Add(xp);
-
-        var top = IconButton(Icons.Cup, "Топ игроков", async () => await Push(new TopPage()));
-        Grid.SetColumn(top, 3);
-        g.Children.Add(top);
 
         var gear = IconButton(Icons.Gear, "Настройки", async () => await Push(new SettingsPage()));
         Grid.SetColumn(gear, 4);
@@ -187,10 +319,10 @@ public class PathPage : DataPage
         var box = new VerticalStackLayout { Spacing = 4 };
         box.Children.Add(g);
 
-        var goalRow = new VerticalStackLayout { Spacing = 3, Padding = new Thickness(18, 6, 18, 8) };
+        var goalRow = new VerticalStackLayout { Spacing = 3, Padding = new Thickness(18, 6, 18, 6) };
         var captions = new Grid { ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) } };
-        captions.Children.Add(Ui.Text($"LV {level}  {levelName.ToUpperInvariant()}", 11, Pal.Ink2, true));
-        var goalText = Ui.Text($"ЦЕЛЬ ДНЯ  {Math.Min(today, goal)}/{goal} XP", 11, Pal.Ink2, true);
+        captions.Children.Add(Ui.Text($"Уровень {level} · {levelName}", 12, Pal.Ink2, true));
+        var goalText = Ui.Text($"Цель дня {Math.Min(today, goal)}/{goal} XP", 12, Pal.Ink2, true);
         Grid.SetColumn(goalText, 1);
         captions.Children.Add(goalText);
         goalRow.Children.Add(captions);
@@ -204,7 +336,7 @@ public class PathPage : DataPage
     {
         var button = new Border
         {
-            Content = new PixelIcon(icon, Pal.Violet, 22, Pal.Paper) { HorizontalOptions = LayoutOptions.Center },
+            Content = new PixelIcon(icon, Pal.Violet, 24, Pal.Paper) { HorizontalOptions = LayoutOptions.Center },
             BackgroundColor = Pal.Paper,
             Stroke = new SolidColorBrush(Pal.Line),
             StrokeThickness = 1,
@@ -217,39 +349,34 @@ public class PathPage : DataPage
         return button;
     }
 
+    // манул занимает правый нижний угол, текст и кнопка держатся левее него
     View HeroCard(Lesson? current)
     {
-        string msg;
-        int streak = AppState.DisplayStreak;
-        if (current != null)
-            msg = streak >= 3
-                ? $"Серия {streak} дн.! Следующий урок: «{current.Title}»."
-                : $"Следующий урок: «{current.Title}».";
-        else
-            msg = "Ты прошёл всё, что сейчас доступно. Новые разделы скоро появятся!";
+        const double CatHeight = 136;
 
-        var text = new VerticalStackLayout { Spacing = 8, VerticalOptions = LayoutOptions.Center };
-        text.Children.Add(new Heading("Изучай психологию вместе с манулом!", 19, mono: false));
-        text.Children.Add(Ui.Text(msg, 12, Pal.Ink2));
+        var text = new VerticalStackLayout { Spacing = 8, Margin = new Thickness(0, 0, 118, 0) };
+        text.Children.Add(Ui.Text("Изучай психологию вместе с манулом!", 21, Pal.Ink, true));
+        text.Children.Add(Ui.Text(current != null ? "Маленькие шаги — большие перемены ♥" : "Ты прошёл всё, что сейчас доступно. Новые разделы скоро появятся!", 13, Pal.Ink2));
         if (current != null)
         {
             var lesson = current;
-            var go = new Btn("НАЧАТЬ УРОК ▶", Pal.Violet, Pal.Paper, 14);
+            var go = new Btn("▶  Начать урок", Pal.Violet, Pal.Paper, 15);
             go.Clicked += async (s, e) => await Push(new LessonPage(lesson));
             text.Children.Add(go);
         }
 
-        var g = new Grid
-        {
-            ColumnSpacing = 8,
-            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
-        };
-        g.Children.Add(text);
-        var cat = Ui.Mood("love", 112);
+        var g = new Grid();
+        var cat = Ui.Mood("love", CatHeight);
+        cat.WidthRequest = CatHeight * 900 / 811;
+        cat.HorizontalOptions = LayoutOptions.End;
         cat.VerticalOptions = LayoutOptions.End;
-        Grid.SetColumn(cat, 1);
+        cat.Margin = new Thickness(0, 0, -22, -14);
         g.Children.Add(cat);
-        return Ui.Box(g, Pal.Paper, 14);
+        g.Children.Add(text);
+
+        var card = Ui.Card(g, Pal.Paper, 16, 30);
+        card.Shadow = Ui.SoftShadow();
+        return card;
     }
 
     // «работа над ошибками» — только когда есть что повторять
@@ -266,11 +393,11 @@ public class PathPage : DataPage
         var icon = new PixelIcon(Icons.Target, Pal.Ink, 26, Pal.Paper) { VerticalOptions = LayoutOptions.Center };
         g.Children.Add(icon);
         var text = new VerticalStackLayout { Spacing = 2, VerticalOptions = LayoutOptions.Center };
-        text.Children.Add(Ui.Text("РАБОТА НАД ОШИБКАМИ", 14, Pal.Ink, true));
-        text.Children.Add(Ui.Text($"{n} {Plural(n, "задание", "задания", "заданий")} с ошибкой ждут повтора", 11, Pal.Ink));
+        text.Children.Add(Ui.Text("Работа над ошибками", 15, Pal.Ink, true));
+        text.Children.Add(Ui.Text($"{n} {Plural(n, "задание", "задания", "заданий")} с ошибкой ждут повтора", 12, Pal.Ink));
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
-        var go = Ui.Text("▶", 22, Pal.Ink, true);
+        var go = Ui.Text("›", 26, Pal.Violet, true);
         go.VerticalTextAlignment = TextAlignment.Center;
         Grid.SetColumn(go, 2);
         g.Children.Add(go);
@@ -294,95 +421,5 @@ public class PathPage : DataPage
             >= 2 and <= 4 => few,
             _ => many
         };
-    }
-
-    View MakeNode(Section sec, Lesson les, int idx, LessonState st)
-    {
-        bool isLocked = st == LessonState.Locked;
-        Color fill = st switch
-        {
-            LessonState.Current => Pal.Violet,
-            LessonState.Done => Pal.Amber,
-            LessonState.Mastered => Pal.TealInk,
-            LessonState.Open => Pal.Paper2,
-            _ => Pal.Gray
-        };
-        string glyph = st is LessonState.Done or LessonState.Mastered ? "✓" : (idx + 1).ToString();
-        Color txt = st is LessonState.Current or LessonState.Mastered ? Pal.Paper : Pal.Ink;
-
-        View mark;
-        if (isLocked)
-        {
-            mark = new PixelIcon(Icons.Lock, Pal.Paper, 26, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
-        }
-        else
-        {
-            var label = Ui.Text(glyph, 26, txt, true, TextAlignment.Center);
-            // галочки нет в основном шрифте
-            label.FontFamily = "MonoBold";
-            label.VerticalTextAlignment = TextAlignment.Center;
-            label.HorizontalOptions = LayoutOptions.Center;
-            label.VerticalOptions = LayoutOptions.Center;
-            mark = label;
-        }
-
-        var circle = new Border
-        {
-            Content = mark,
-            BackgroundColor = fill,
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(NodeSize / 2) },
-            WidthRequest = NodeSize,
-            HeightRequest = NodeSize,
-            VerticalOptions = LayoutOptions.Center,
-            Shadow = Ui.SoftShadow(Pal.Violet)
-        };
-
-        // раньше бесконечная анимация запускалась при каждой пересборке и не останавливалась
-        if (st == LessonState.Current) pulsing = circle;
-
-        var info = new VerticalStackLayout { Spacing = 1, VerticalOptions = LayoutOptions.Center };
-        info.Children.Add(Ui.Text($"Урок {idx + 1}", 11, Pal.Ink2));
-        info.Children.Add(Ui.Text(les.Title, 14, isLocked ? Pal.Ink2 : Pal.Ink, true));
-
-        var inner = new Grid
-        {
-            ColumnSpacing = 6,
-            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
-        };
-        inner.Children.Add(info);
-        var chevron = Ui.Text("›", 26, isLocked ? Pal.Ink2 : Pal.Violet, true);
-        chevron.VerticalTextAlignment = TextAlignment.Center;
-        Grid.SetColumn(chevron, 1);
-        inner.Children.Add(chevron);
-
-        // карточка заходит под кружок, как на макете
-        var card = Ui.Card(inner, Pal.Paper, 12);
-        card.Padding = new Thickness(26, 10, 12, 10);
-        card.Margin = new Thickness(-16, 6, 0, 6);
-        card.VerticalOptions = LayoutOptions.Center;
-        Grid.SetColumn(card, 1);
-
-        double left = OffsetOf(idx);
-        var node = new Grid
-        {
-            Margin = new Thickness(left, 0, MaxOffset - left, 0),
-            ColumnDefinitions = { new ColumnDefinition(new GridLength(NodeSize)), new ColumnDefinition(GridLength.Star) }
-        };
-        node.Children.Add(card);
-        node.Children.Add(circle);
-
-        var lesson = les;
-        var state = st;
-        Ui.OnTap(node, async () =>
-        {
-            if (state == LessonState.Locked)
-            {
-                await Dlg.Alert(this, "ЗАКРЫТО", "Сначала пройди предыдущие уроки или повысь уровень.");
-                return;
-            }
-            await Push(new LessonPage(lesson));
-        });
-        return node;
     }
 }

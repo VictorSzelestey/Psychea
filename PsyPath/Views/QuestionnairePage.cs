@@ -24,7 +24,6 @@ public class QuestionnairePage : BasePage
         {
             RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) }
         };
-        root.Children.Add(Ui.Stripes(4));
         Grid.SetRow(content, 1);
         root.Children.Add(content);
         return root;
@@ -61,7 +60,6 @@ public class QuestionnairePage : BasePage
         var q = quiz.Questions[index];
 
         var head = new VerticalStackLayout { Spacing = 0 };
-        head.Children.Add(Ui.Stripes(4));
         head.Children.Add(new Bar(Pal.Violet) { Value = (double)index / quiz.Questions.Count, Margin = new Thickness(18, 12, 18, 0) });
         var counter = Ui.Text($"ВОПРОС {index + 1:00}/{quiz.Questions.Count}", 11, Pal.Ink2, true, TextAlignment.End);
         counter.Margin = new Thickness(18, 4, 18, 0);
@@ -121,7 +119,6 @@ public class QuestionnairePage : BasePage
         var stack = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 10, 18, 30) };
         // карточка-итог для «Поделиться»: название, главный вывод, шкалы
         var card = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(0, 0, 0, 6), BackgroundColor = Pal.Paper };
-        card.Children.Add(Ui.Stripes(3));
         card.Children.Add(new Heading("РЕЗУЛЬТАТ", 24));
         card.Children.Add(Ui.Text(quiz.Title.ToUpperInvariant(), 12, Pal.Ink2, true));
         stack.Children.Add(card);

@@ -17,26 +17,20 @@ public class AppShell : Shell
         Shell.SetTabBarUnselectedColor(this, Pal.Ink2);
 
         var tabs = new TabBar();
-        tabs.Items.Add(MakeTab("ОПРОСНИКИ", "▣", typeof(QuestionnairesPage)));
-        tabs.Items.Add(MakeTab("СПРАВОЧНИК", "≡", typeof(ReferencePage)));
-        tabs.Items.Add(MakeTab("ВОПРОСЫ", "▶", typeof(PathPage)));
-        tabs.Items.Add(MakeTab("ПРОФИЛЬ", "●", typeof(ProfilePage)));
+        tabs.Items.Add(MakeTab("Главная", "tab_home.png", typeof(PathPage)));
+        tabs.Items.Add(MakeTab("Опросники", "tab_quiz.png", typeof(QuestionnairesPage)));
+        tabs.Items.Add(MakeTab("Справочник", "tab_book.png", typeof(ReferencePage)));
+        tabs.Items.Add(MakeTab("Профиль", "tab_profile.png", typeof(ProfilePage)));
         Items.Add(tabs);
         if (tab > 0 && tab < tabs.Items.Count) tabs.CurrentItem = tabs.Items[tab];
     }
 
-    static ShellContent MakeTab(string title, string glyph, Type pageType)
+    static ShellContent MakeTab(string title, string icon, Type pageType)
     {
         return new ShellContent
         {
             Title = title,
-            Icon = new FontImageSource
-            {
-                Glyph = glyph,
-                FontFamily = "MonoBold",
-                Size = 20,
-                Color = Pal.Violet
-            },
+            Icon = icon,
             ContentTemplate = new DataTemplate(pageType)
         };
     }

@@ -34,7 +34,6 @@ public class OnboardingPage : BasePage
     View Header(string title)
     {
         var box = new VerticalStackLayout { Spacing = 0 };
-        box.Children.Add(Ui.Stripes(4));
         var t = new Heading(title, 22);
         t.Margin = new Thickness(18, 14, 18, 0);
         box.Children.Add(t);

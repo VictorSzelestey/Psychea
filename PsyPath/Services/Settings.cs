@@ -23,13 +23,6 @@ public static class Settings
         set => Preferences.Default.Set("set_still", value);
     }
 
-    // эффекты VHS: строки развёртки, полоски, моноширинные заголовки
-    public static bool Retro
-    {
-        get => Preferences.Default.Get("set_retro", true);
-        set => Preferences.Default.Set("set_retro", value);
-    }
-
     // раз в сутки при запуске проверять, вышла ли новая версия
     public static bool AutoUpdate
     {

@@ -13,7 +13,6 @@ public class QuestionnairesPage : DataPage
         };
 
         var top = new VerticalStackLayout { Spacing = 0 };
-        top.Children.Add(Ui.Stripes(4));
         var title = new Heading("ОПРОСНИКИ", 24);
         title.Margin = new Thickness(18, 10, 18, 6);
         top.Children.Add(title);
