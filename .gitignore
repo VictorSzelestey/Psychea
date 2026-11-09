@@ -435,3 +435,6 @@ FodyWeavers.xsd
 *.apk
 !releases/Psychea.apk
 !/releases/
+
+# Local release notes
+/GIT.md
