@@ -131,6 +131,7 @@ public static class Api
             }
 
             int status = (int)resp.StatusCode;
+            if (!resp.IsSuccessStatusCode) CrashLog.Write("API", $"{method} {path}: HTTP {status}");
             if (resp.IsSuccessStatusCode) return new ApiResult(true, status, Body: body);
 
             string error = resp.StatusCode switch
@@ -145,6 +146,7 @@ public static class Api
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or UriFormatException)
         {
+            CrashLog.Write("API", ex, $"{method} {path}");
             return new ApiResult(false, 0, "Нет связи с сервером");
         }
     }

@@ -47,7 +47,13 @@ public class QuestionnairePage : BasePage
             stack.Children.Add(Ui.Text("Источник: " + quiz.Source, 11, Pal.Ink2));
 
         var go = new Btn("НАЧАТЬ ▶", Pal.Violet, Pal.Paper);
-        go.Clicked += async (s, e) => await ShowQuestion();
+        go.Clicked += async (s, e) =>
+        {
+            if (locked) return;
+            locked = true;
+            go.Enabled = false;
+            await ShowQuestion();
+        };
         stack.Children.Add(go);
 
         var back = Ui.Text("НАЗАД", 12, Pal.Ink2, true, TextAlignment.Center);
@@ -59,12 +65,17 @@ public class QuestionnairePage : BasePage
 
     async Task ShowQuestion()
     {
+        locked = true;
         if (index >= quiz.Questions.Count)
         {
             await ShowResult();
             return;
         }
         var q = quiz.Questions[index];
+        int questionIndex = index;
+        int? selectedValue = null;
+        var choices = new List<(Button Button, int Value, string Text)>();
+        CrashLog.Write("Questionnaire", $"id={quiz.Id}; question={index + 1}/{quiz.Questions.Count}");
 
         var head = new VerticalStackLayout { Spacing = 0 };
         head.Children.Add(new Bar(Pal.Violet) { Value = (double)index / quiz.Questions.Count, Margin = new Thickness(18, 12, 18, 0) });
@@ -75,46 +86,79 @@ public class QuestionnairePage : BasePage
         var body = new VerticalStackLayout { Spacing = 12, Padding = new Thickness(18, 10, 18, 28) };
         body.Children.Add(Ui.Text(q.Q, 19, Pal.Ink, true));
 
+        var next = new Button
+        {
+            Text = "ДАЛЬШЕ", BackgroundColor = Pal.Violet, TextColor = Pal.Paper,
+            FontFamily = "BodyBold", FontSize = 16 * Ui.Scale, CornerRadius = 24,
+            MinimumHeightRequest = 52, Padding = new Thickness(16, 12), IsEnabled = false
+        };
+        SemanticProperties.SetHint(next, "Выбери ответ, затем переходи к следующему вопросу");
+        next.Clicked += async (s, e) =>
+        {
+            if (locked || index != questionIndex || selectedValue == null) return;
+            locked = true;
+            next.IsEnabled = false;
+            answers.Add(selectedValue.Value);
+            index++;
+            await ShowQuestion();
+        };
+
+        void AddAnswer(string text, int value)
+        {
+            var button = new Button
+            {
+                Text = text, BackgroundColor = Pal.Paper, TextColor = Pal.Ink,
+                FontFamily = "BodyBold", FontSize = (quiz.IsYesNo ? 18 : 15) * Ui.Scale,
+                CornerRadius = 24, BorderColor = Pal.Line, BorderWidth = 2,
+                MinimumHeightRequest = 56, Padding = new Thickness(16, 14),
+                LineBreakMode = LineBreakMode.WordWrap
+            };
+            choices.Add((button, value, text));
+            button.Clicked += (s, e) =>
+            {
+                if (locked || index != questionIndex) return;
+                selectedValue = value;
+                Sound.Play("tap");
+                foreach (var choice in choices)
+                {
+                    bool selected = choice.Value == value;
+                    choice.Button.BackgroundColor = selected ? Pal.Amber : Pal.Paper;
+                    choice.Button.BorderColor = selected ? Pal.Violet : Pal.Line;
+                    choice.Button.Text = selected ? "✓ " + choice.Text : choice.Text;
+                    SemanticProperties.SetDescription(choice.Button, choice.Text + (selected ? ", выбран" : ", не выбран"));
+                }
+                next.IsEnabled = true;
+            };
+            body.Children.Add(button);
+        }
+
         if (quiz.IsYesNo)
         {
-            body.Children.Add(AnswerCard("ДА", 1, Pal.GreenSoft));
-            body.Children.Add(AnswerCard("НЕТ", 0, Pal.RedSoft));
+            AddAnswer("ДА", 1);
+            AddAnswer("НЕТ", 0);
         }
         else
         {
             var order = Enumerable.Range(0, q.Options.Count).OrderBy(_ => rnd.Next()).ToList();
             foreach (int i in order)
-                body.Children.Add(AnswerCard(q.Options[i].Text, i, Pal.Paper));
+                AddAnswer(q.Options[i].Text, i);
         }
 
         var root = new Grid
         {
-            RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star) }
+            RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star), new RowDefinition(GridLength.Auto) }
         };
         root.Children.Add(head);
         var scroll = new ScrollView { Content = body };
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);
+        var footer = new VerticalStackLayout { Padding = new Thickness(18, 8, 18, 24) };
+        footer.Children.Add(next);
+        Grid.SetRow(footer, 2);
+        root.Children.Add(footer);
         await SwapBody(root);
         // пока идёт анимация, ответы не принимаются
         locked = false;
-    }
-
-    View AnswerCard(string text, int value, Color fill)
-    {
-        var align = quiz.IsYesNo ? TextAlignment.Center : TextAlignment.Start;
-        var row = Ui.Card(Ui.Text(text, quiz.IsYesNo ? 18 : 15, Pal.Ink, quiz.IsYesNo, align), fill, 13);
-        Ui.OnTap(row, async () =>
-        {
-            if (locked) return;
-            locked = true;
-            row.BackgroundColor = Pal.Amber;
-            answers.Add(value);
-            await Task.Delay(200);
-            index++;
-            await ShowQuestion();
-        });
-        return row;
     }
 
     async Task ShowResult()

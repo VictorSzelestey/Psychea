@@ -7,6 +7,7 @@ public class App : Application
 {
     protected override Window CreateWindow(IActivationState? activationState)
     {
+        CrashLog.Write("Lifecycle", "CreateWindow");
         return new Window(new LoadingPage());
     }
 
@@ -14,7 +15,14 @@ public class App : Application
     protected override void OnResume()
     {
         base.OnResume();
+        CrashLog.Write("Lifecycle", "Resume");
         _ = Sync.Flush();
         Reminders.Update();
+    }
+
+    protected override void OnSleep()
+    {
+        CrashLog.Write("Lifecycle", "Sleep");
+        base.OnSleep();
     }
 }

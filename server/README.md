@@ -23,7 +23,7 @@ ASP.NET Core (.NET 9) между приложением и PostgreSQL. Прил�
 | POST | `/api/auth/register`, `/api/auth/login` | все; не больше 10 попыток в минуту |
 | POST | `/api/auth/refresh` — новый токен на 30 дней | вошедший |
 | GET | `/api/me` | вошедший |
-| GET / PUT | `/api/me/top` — топ-50 и своё место / `{ "hidden": true }` | вошедший |
+| GET / PUT | `/api/me/top` — топ-10 и своё место / `{ "hidden": true }` | вошедший |
 | PUT | `/api/me/progress` | вошедший, тело — ProgressData |
 | POST | `/api/me/lessons`, `/api/me/questionnaires` | вошедший |
 | GET | `/api/content/versions`, `/api/content/{lessons\|questionnaires\|rating\|reference}` | все |

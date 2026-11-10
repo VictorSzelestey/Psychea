@@ -9,7 +9,7 @@ public class TopPage : AdminBase
 {
     bool loading;
 
-    public TopPage() => Show("ТОП ИГРОКОВ", Message("Загружаю…"));
+    public TopPage() => Show("ТОП-10 ИГРОКОВ", Message("Загружаю…"));
 
     protected override void Refresh() => _ = Load();
 
@@ -33,7 +33,7 @@ public class TopPage : AdminBase
         var again = new Btn("ПОВТОРИТЬ", Pal.Violet, Pal.Paper);
         again.Clicked += async (o, e) => await Load();
         s.Children.Add(again);
-        Show("ТОП ИГРОКОВ", s);
+        Show("ТОП-10 ИГРОКОВ", s);
     }
 
     void ShowTop(JsonElement body)
@@ -52,18 +52,19 @@ public class TopPage : AdminBase
             }));
             string? note = hidden ? "Ты скрыт: другие не видят твоё имя и XP."
                 : place == null ? "Набери первые XP, чтобы попасть в топ."
-                : place > 50 ? $"Твоё место: {place}."
+                : place > 10 ? $"Твоё место: {place}."
                 : null;
             if (note != null) s.Children.Add(Ui.Text(note, 13, Pal.Ink2, true));
         }
 
-        var top = body.GetProperty("top").EnumerateArray().ToList();
+        // Ограничение и на клиенте: старый сервер пока может присылать 50 строк.
+        var top = body.GetProperty("top").EnumerateArray().Take(10).ToList();
         if (top.Count == 0) s.Children.Add(Ui.Text("Пока здесь никого нет.", 13, Pal.Ink2));
         foreach (var row in top)
             s.Children.Add(Row(row.GetProperty("place").GetInt64(), row.GetProperty("name").GetString() ?? "",
                 row.GetProperty("xp").GetInt32(), row.GetProperty("me").GetBoolean()));
 
-        Show("ТОП ИГРОКОВ", s, animate: true);
+        Show("ТОП-10 ИГРОКОВ", s, animate: true);
     }
 
     static View Row(long place, string name, int xp, bool me)

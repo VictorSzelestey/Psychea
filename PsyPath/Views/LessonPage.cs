@@ -385,6 +385,8 @@ public class LessonPage : BasePage
         };
     }
 
+    // «соедини пары»: свободно подбираешь пары, ничего не подсвечивается красным,
+    // проверка — только по общей кнопке «ПРОВЕРИТЬ», как у остальных заданий
     void RenderMatch(TaskItem t)
     {
         AddHeader(t);
@@ -411,49 +413,31 @@ public class LessonPage : BasePage
 
         var lRows = new Border[n];
         var rRows = new Border[n];
-        var matched = new bool[n];
-        int selL = -1, selR = -1, wrongTries = 0;
-        bool busy = false;
+        var chosen = new int?[n]; // chosen[leftId] = выбранный rightId, пока не нажали «Проверить»
+        int selL = -1, selR = -1;
 
         void Refresh()
         {
             for (int i = 0; i < n; i++)
+                lRows[i].BackgroundColor = selL == i ? Pal.Amber : (chosen[i].HasValue ? Pal.Paper2 : Pal.Paper);
+            for (int i = 0; i < n; i++)
             {
-                lRows[i].BackgroundColor = matched[i] ? Pal.GreenSoft : (selL == i ? Pal.Amber : Pal.Paper);
-                rRows[i].BackgroundColor = matched[i] ? Pal.GreenSoft : (selR == i ? Pal.Amber : Pal.Paper);
-                lRows[i].Opacity = matched[i] ? 0.6 : 1;
-                rRows[i].Opacity = matched[i] ? 0.6 : 1;
+                bool paired = Array.IndexOf(chosen, (int?)i) >= 0;
+                rRows[i].BackgroundColor = selR == i ? Pal.Amber : (paired ? Pal.Paper2 : Pal.Paper);
             }
+            if (!isChecked) actionBtn.Enabled = chosen.All(x => x.HasValue);
         }
 
-        async void TryPair()
+        void TryPair()
         {
             if (selL < 0 || selR < 0) return;
-            busy = true;
-            if (selL == selR)
-            {
-                _ = lRows[selL].Bounce();
-                _ = rRows[selR].Bounce();
-                matched[selL] = true;
-                selL = -1;
-                selR = -1;
-                Refresh();
-                busy = false;
-                if (matched.All(x => x)) DoCheck(wrongTries == 0);
-            }
-            else
-            {
-                wrongTries++;
-                lRows[selL].BackgroundColor = Pal.RedSoft;
-                rRows[selR].BackgroundColor = Pal.RedSoft;
-                _ = lRows[selL].Shake();
-                _ = rRows[selR].Shake();
-                await Task.Delay(350);
-                selL = -1;
-                selR = -1;
-                Refresh();
-                busy = false;
-            }
+            // одна пара справа привязывается только к одной слева
+            for (int i = 0; i < n; i++)
+                if (chosen[i] == selR) chosen[i] = null;
+            chosen[selL] = selR;
+            selL = -1;
+            selR = -1;
+            Refresh();
         }
 
         bool icons = Icons.ForAll(left.Select(x => x.text));
@@ -465,7 +449,7 @@ public class LessonPage : BasePage
             var tap = new TapGestureRecognizer();
             tap.Tapped += (s, e) =>
             {
-                if (isChecked || busy || matched[id]) return;
+                if (isChecked) return;
                 _ = row.Press();
                 selL = selL == id ? -1 : id;
                 Refresh();
@@ -483,7 +467,7 @@ public class LessonPage : BasePage
             var tap = new TapGestureRecognizer();
             tap.Tapped += (s, e) =>
             {
-                if (isChecked || busy || matched[id]) return;
+                if (isChecked) return;
                 _ = row.Press();
                 selR = selR == id ? -1 : id;
                 Refresh();
@@ -496,9 +480,14 @@ public class LessonPage : BasePage
         grid.Children.Add(lCol);
         grid.Children.Add(rCol);
         body.Children.Add(grid);
-        body.Children.Add(Ui.Text("Нажми слева, потом справа.", 11, Pal.Ink2));
+        body.Children.Add(Ui.Text("Нажми слева, потом справа. Соединишь все — жми «Проверить».", 11, Pal.Ink2));
 
-        evaluate = () => wrongTries == 0;
+        evaluate = () =>
+        {
+            for (int i = 0; i < n; i++)
+                if (chosen[i] != i) return false;
+            return true;
+        };
     }
 
     void RenderOrder(TaskItem t)
