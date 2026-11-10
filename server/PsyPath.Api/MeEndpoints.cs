@@ -130,7 +130,7 @@ public static class MeEndpoints
         return Results.Ok(new { saved = true });
     }
 
-    // топ-50 по XP и своё место; админы, заблокированные, скрывшие себя и новички с 0 XP не участвуют
+    // топ-10 по XP и своё место; админы, заблокированные, скрывшие себя и новички с 0 XP не участвуют
     static async Task<IResult> Top(ClaimsPrincipal me, NpgsqlDataSource db)
     {
         long id = me.UserId();
@@ -150,7 +150,7 @@ public static class MeEndpoints
                 where u.role = 'user' and not u.is_blocked and not u.hide_in_top and p.total_xp > 0
             )
             select id, display_name, total_xp, place from ranked
-            where place <= 50 or id = $1
+            where place <= 10 or id = $1
             order by place
             """);
         list.Parameters.AddWithValue(id);
@@ -163,7 +163,7 @@ public static class MeEndpoints
             bool isMe = r.GetInt64(0) == id;
             long p = r.GetInt64(3);
             if (isMe) place = p;
-            if (p <= 50) top.Add(new { place = p, name = r.GetString(1), xp = r.GetInt32(2), me = isMe });
+            if (p <= 10) top.Add(new { place = p, name = r.GetString(1), xp = r.GetInt32(2), me = isMe });
         }
         return Results.Ok(new { top, place, hidden });
     }

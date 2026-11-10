@@ -87,6 +87,30 @@ public class SettingsPage : AdminBase
         if (Api.User != null)
             s.Children.Add(Form.Link("УДАЛИТЬ АККАУНТ", Pal.RedInk, async () => await Push(new DeleteAccountPage()), TextAlignment.Center));
 
+        s.Children.Add(Form.Section("ДИАГНОСТИКА"));
+        s.Children.Add(Form.Hint("После сбоя снова открой приложение и отправь журнал разработчику. В нём — ошибки и последние открытые экраны."));
+        var logs = new Btn("ОТПРАВИТЬ ЖУРНАЛ", Pal.Paper2, Pal.Ink, 15);
+        logs.Clicked += async (_, _) =>
+        {
+            if (!logs.Enabled) return;
+            logs.Enabled = false;
+            try
+            {
+                string? file = await Task.Run(() => CrashLog.Export(FileSystem.CacheDirectory));
+                if (file == null)
+                    await Dlg.Alert(this, "ЖУРНАЛ", "Не удалось прочитать журнал. Проверь свободное место на телефоне.");
+                else
+                    await Share.Default.RequestAsync(new ShareFileRequest("Журнал Психеи", new ShareFile(file, "text/plain")));
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("Share diagnostics", ex);
+                await Dlg.Alert(this, "ЖУРНАЛ", "Не удалось открыть отправку журнала. Попробуй ещё раз.");
+            }
+            finally { logs.Enabled = true; }
+        };
+        s.Children.Add(logs);
+
         s.Children.Add(Form.Section("ОБНОВЛЕНИЯ"));
         s.Children.Add(Form.Choice("АВТООБНОВЛЕНИЕ", OnOff, Settings.AutoUpdate ? "1" : "0", v => Settings.AutoUpdate = v == "1"));
         s.Children.Add(Form.Hint("Раз в сутки при запуске приложение проверяет новую версию и предлагает её установить."));

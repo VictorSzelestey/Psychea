@@ -295,6 +295,7 @@ public abstract class BasePage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        CrashLog.Write("Page", GetType().Name);
         navigating = false;
         Refresh();
         _ = PlayEnter();

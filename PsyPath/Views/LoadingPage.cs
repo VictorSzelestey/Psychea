@@ -29,6 +29,7 @@ public class LoadingPage : BasePage
         }
         catch (Exception ex)
         {
+            CrashLog.Write("Loading", ex);
             var err = new VerticalStackLayout { Padding = 24, VerticalOptions = LayoutOptions.Center, Spacing = 12 };
             err.Children.Add(Ui.Mood("worried", 140));
             err.Children.Add(Ui.Text("ОШИБКА ЗАГРУЗКИ", 18, Pal.RedInk, true));
