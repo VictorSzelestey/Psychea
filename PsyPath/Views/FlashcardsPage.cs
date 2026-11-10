@@ -15,6 +15,7 @@ public class FlashcardsPage : AdminBase
     readonly HashSet<RefEntry> missed = new();
     readonly int total;
     int firstTry;
+    int cardVersion;
 
     public FlashcardsPage()
     {
@@ -38,6 +39,7 @@ public class FlashcardsPage : AdminBase
 
     void ShowCard(bool flipped)
     {
+        int version = ++cardVersion;
         var e = queue[0];
         var s = List();
         int done = total - queue.Count;
@@ -65,10 +67,12 @@ public class FlashcardsPage : AdminBase
             var show = new Btn("ПОКАЗАТЬ", Pal.Violet, Pal.Paper);
             show.Clicked += async (o, ev) =>
             {
+                if (version != cardVersion) return;
                 Sound.Play("flip");
                 // «переворот»: карточка сжимается по ширине и раскрывается уже с определением
                 await card.Zoom(0.92, 90, Easing.CubicIn);
-                ShowCard(true);
+                // Другой отложенный tap мог уже перевернуть или сменить карточку.
+                if (version == cardVersion) ShowCard(true);
             };
             bottom.Children.Add(show);
         }
@@ -81,10 +85,10 @@ public class FlashcardsPage : AdminBase
                 ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) },
                 RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) }
             };
-            AddRating(buttons, e, CardRating.Again, "СНОВА", Pal.RedInk, Pal.Paper, 0, 0);
-            AddRating(buttons, e, CardRating.Hard, "ТРУДНО", Pal.Orange, Pal.Ink, 0, 1);
-            AddRating(buttons, e, CardRating.Good, "ХОРОШО", Pal.Violet, Pal.Paper, 1, 0);
-            AddRating(buttons, e, CardRating.Easy, "ЛЕГКО", Pal.GreenInk, Pal.Paper, 1, 1);
+            AddRating(buttons, e, version, CardRating.Again, "СНОВА", Pal.RedInk, Pal.Paper, 0, 0);
+            AddRating(buttons, e, version, CardRating.Hard, "ТРУДНО", Pal.Orange, Pal.Ink, 0, 1);
+            AddRating(buttons, e, version, CardRating.Good, "ХОРОШО", Pal.Violet, Pal.Paper, 1, 0);
+            AddRating(buttons, e, version, CardRating.Easy, "ЛЕГКО", Pal.GreenInk, Pal.Paper, 1, 1);
             bottom.Children.Add(Ui.Text("Насколько быстро вспомнил?", 12, Pal.Ink2, true, TextAlignment.Center));
             bottom.Children.Add(buttons);
         }
@@ -98,19 +102,24 @@ public class FlashcardsPage : AdminBase
     }
 
     // на кнопке — оценка и когда карточка вернётся
-    void AddRating(Grid grid, RefEntry e, CardRating rating, string name, Color fill, Color text, int row, int column)
+    void AddRating(Grid grid, RefEntry e, int version, CardRating rating, string name, Color fill, Color text, int row, int column)
     {
         int days = Practice.PlanFor(e, rating).Days;
         string when = days == 0 ? "сегодня" : days == 1 ? "завтра" : $"через {days} дн.";
         var button = new Btn($"{name}\n{when}", fill, text, 14);
-        button.Clicked += (o, ev) => Answer(e, rating);
+        button.Clicked += (o, ev) => Answer(e, version, rating);
         Grid.SetRow(button, row);
         Grid.SetColumn(button, column);
         grid.Children.Add(button);
     }
 
-    void Answer(RefEntry e, CardRating rating)
+    void Answer(RefEntry e, int version, CardRating rating)
     {
+        // Btn вызывает Clicked после анимации: несколько старых нажатий могут
+        // прийти уже после смены экрана. Даже «снова» с единственной карточкой
+        // должно приниматься только один раз для данного показа определения.
+        if (version != cardVersion || queue.Count == 0 || !ReferenceEquals(queue[0], e)) return;
+        cardVersion++;
         Practice.Answer(e, rating);
         queue.RemoveAt(0);
         if (rating == CardRating.Again)

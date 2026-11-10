@@ -144,7 +144,11 @@ public static class Api
             };
             return new ApiResult(false, status, error);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or UriFormatException)
+        // AndroidMessageHandler может отдать WebException напрямую (Socket closed),
+        // без оболочки HttpRequestException. Ошибки чтения и отмена тоже оставляют
+        // прогресс в офлайн-очереди вместо исключения из фоновой синхронизации.
+        catch (Exception ex) when (ex is HttpRequestException or WebException or IOException
+            or System.Net.Sockets.SocketException or OperationCanceledException or JsonException or UriFormatException)
         {
             CrashLog.Write("API", ex, $"{method} {path}");
             return new ApiResult(false, 0, "Нет связи с сервером");
