@@ -33,8 +33,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = "role"
         };
     });
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("admin", p => p.RequireRole("admin"));
+builder.Services.AddRoleAuthorization();
 
 // не больше 10 попыток входа и регистрации в минуту с одного адреса
 builder.Services.AddRateLimiter(o =>

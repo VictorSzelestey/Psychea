@@ -19,7 +19,7 @@ public class AdminContentPage : AdminBase
     public AdminContentPage(string name)
     {
         this.name = name;
-        title = name == "lessons" ? "УРОКИ" : "ОПРОСНИКИ";
+        title = name switch { "lessons" => "УРОКИ", "reference" => "СПРАВОЧНИК", "rating" => "РЕЙТИНГ И УРОВНИ", _ => "ОПРОСНИКИ" };
         Show(title, Message("ЗАГРУЗКА…"));
     }
 
@@ -35,7 +35,7 @@ public class AdminContentPage : AdminBase
         }
         version = r.Body.GetProperty("version").GetInt32();
         root = JsonNode.Parse(r.Body.GetProperty("data").GetRawText());
-        if (name != "lessons") await FindUnpublished();
+        if (name == "questionnaires") await FindUnpublished();
         Show(title, Build(), animate: true);
     }
 
@@ -105,7 +105,7 @@ public class AdminContentPage : AdminBase
                 stack.Children.Add(add);
             }
         }
-        else
+        else if (name == "questionnaires")
         {
             foreach (var item in unpublished)
                 stack.Children.Add(UnpublishedCard(item));
@@ -130,10 +130,34 @@ public class AdminContentPage : AdminBase
             };
             stack.Children.Add(add);
         }
+        else if (name == "reference")
+        {
+            var entries = root!["entries"]!.AsArray();
+            var add = new Btn("+ НОВАЯ СТАТЬЯ", Pal.Violet, Pal.Paper);
+            add.Clicked += async (_, _) => await Push(new AdminReferenceEntryPage(new RefEntry(),
+                entries.Select(n => Str(n!, "term")).ToList(),
+                text => Save(text, typeof(RefEntry), (doc, item) => { doc["entries"]!.AsArray().Add(item); return doc; })));
+            stack.Children.Add(add);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                int index = i;
+                string json = entries[i]!.ToJsonString();
+                var edit = new Btn(Str(entries[i]!, "term"), Pal.Paper, Pal.Ink, 14) { MinimumHeightRequest = 48 };
+                edit.Clicked += async (_, _) => await Push(new AdminReferenceEntryPage(
+                    JsonSerializer.Deserialize<RefEntry>(json, AppState.JsonOptions)!,
+                    entries.Where((_, j) => j != index).Select(n => Str(n!, "term")).ToList(),
+                    text => Save(text, typeof(RefEntry), (doc, item) => { doc["entries"]![index] = item; return doc; }),
+                    () => SaveDoc(doc => { doc["entries"]!.AsArray().RemoveAt(index); return doc; })));
+                stack.Children.Add(edit);
+            }
+        }
+        else
+            stack.Children.Add(Ui.Text("Уровни, пороги рейтинга и открытие разделов редактируются через «Весь файл».", 14));
 
         var whole = new Btn("ВЕСЬ ФАЙЛ ✎", Pal.Paper2);
         whole.Clicked += async (s, e) => await Push(new AdminEditPage(title + " // ФАЙЛ", root!.ToJsonString(Pretty),
-            json => Save(json, name == "lessons" ? typeof(LessonsFile) : typeof(QuestionnaireFile), (doc, item) => item)));
+            json => Save(json, name switch { "lessons" => typeof(LessonsFile), "reference" => typeof(RefFile),
+                "rating" => typeof(RatingFile), _ => typeof(QuestionnaireFile) }, (doc, item) => item)));
         stack.Children.Add(whole);
 
         var history = new Btn("ИСТОРИЯ ВЕРСИЙ ▶", Pal.Paper2);

@@ -15,6 +15,16 @@ public class AdminPage : AdminBase
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        if (Api.User?.CanEditContent != true)
+        {
+            Show("КОНТЕНТ", Message("Нет доступа к управлению контентом.", Pal.RedInk));
+            return;
+        }
+        if (Api.User.IsManager)
+        {
+            Show("КОНТЕНТ", ContentLinks(), animate: true);
+            return;
+        }
         var r = await Api.AdminStats();
         if (!r.Ok)
         {
@@ -51,15 +61,10 @@ public class AdminPage : AdminBase
         Cell($"ОПРОСНИКОВ {o.GetProperty("questionnairesTaken").GetInt64()}", 2, 0);
         stack.Children.Add(grid);
 
-        void Link(string text, Color fill, Func<Page> page)
-        {
-            var b = new Btn(text, fill);
-            b.Clicked += async (s, e) => await Push(page());
-            stack.Children.Add(b);
-        }
-        Link("ПОЛЬЗОВАТЕЛИ ▶", Pal.Paper2, () => new AdminUsersPage());
-        Link("УРОКИ ✎", Pal.Amber, () => new AdminContentPage("lessons"));
-        Link("ОПРОСНИКИ ✎", Pal.Amber, () => new AdminContentPage("questionnaires"));
+        var users = new Btn("ПОЛЬЗОВАТЕЛИ ▶", Pal.Paper2);
+        users.Clicked += async (_, _) => await Push(new AdminUsersPage());
+        stack.Children.Add(users);
+        stack.Children.Add(ContentLinks());
 
         var lessons = new VerticalStackLayout { Spacing = 8 };
         lessons.Children.Add(Ui.Text("УРОКИ: ПРОХОЖДЕНИЯ И ТОЧНОСТЬ", 12, Pal.RedInk, true));
@@ -88,6 +93,20 @@ public class AdminPage : AdminBase
                 quiz.Children.Add(Ui.Text($"▸ {q.GetProperty("headline").GetString()} — {q.GetProperty("times").GetInt64()}", 12));
         }
         stack.Children.Add(Ui.Card(quiz, Pal.Paper, 12));
+        return stack;
+    }
+
+    View ContentLinks()
+    {
+        var stack = List();
+        stack.Children.Add(Ui.Text("Добавляй и редактируй материалы, которые увидят пользователи приложения.", 14));
+        foreach (var (name, title) in new[] { ("reference", "СПРАВОЧНИК"), ("lessons", "УРОКИ"),
+            ("questionnaires", "ОПРОСНИКИ"), ("rating", "РЕЙТИНГ И УРОВНИ") })
+        {
+            var edit = new Btn(title + " ✎", Pal.Amber) { MinimumHeightRequest = 48 };
+            edit.Clicked += async (_, _) => await Push(new AdminContentPage(name));
+            stack.Children.Add(edit);
+        }
         return stack;
     }
 }
