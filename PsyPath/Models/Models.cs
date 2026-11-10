@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
+using PsyPath.Services;
 namespace PsyPath.Models;
 
 public class LessonsFile
@@ -204,6 +204,7 @@ public class ProgressData
 {
     public bool Onboarded { get; set; }
     public int DailyGoalMin { get; set; } = 10;
+    public string Role { get; set; } = "";   // ← вот эта строка новая
     public double Rating { get; set; } = 100;
     public int Answered { get; set; }
     public int Correct { get; set; }

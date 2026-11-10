@@ -8,6 +8,15 @@ public class ProfilePage : DataPage
     readonly Label syncInfo = Ui.Text("", 11, Pal.Ink2, true);
     Elephant? elephant;
 
+    // "student" → "СТУДЕНТ" и т.п.; ответ из онбординга показывается тут
+    static string RoleTitle(string role) => role switch
+    {
+        "student" => "СТУДЕНТ",
+        "psychologist" => "ПСИХОЛОГ",
+        "curious" => "ПРОСТО ИНТЕРЕСНО",
+        _ => role
+    };
+
     // подписка только пока вкладка на экране: статическое событие иначе держало бы старые экраны
     protected override void OnAppearing()
     {
@@ -81,6 +90,8 @@ public class ProfilePage : DataPage
         lvRow.Children.Add(new PixelIcon(Icons.Rank, Pal.Ink, 20, Pal.Amber));
         lvRow.Children.Add(Ui.Text($"LV {level}  {lv.Name.ToUpperInvariant()}", 20, Pal.Ink, true, TextAlignment.Center));
         lvBox.Children.Add(lvRow);
+        if (!string.IsNullOrEmpty(p.Role))
+            lvBox.Children.Add(Ui.Text(RoleTitle(p.Role), 12, Pal.Ink2, true, TextAlignment.Center));
         lvBox.Children.Add(Ui.Text($"РЕЙТИНГ {(int)p.Rating}", 13, Pal.Ink2, true, TextAlignment.Center));
         double span = Math.Max(1, lv.RatingTo - lv.RatingFrom + 1);
         lvBox.Children.Add(new Bar(Pal.Violet) { Value = (p.Rating - lv.RatingFrom) / span });
