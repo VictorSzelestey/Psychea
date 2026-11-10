@@ -9,6 +9,9 @@ namespace PsyPath.Services;
 public record ApiUser(long Id, string Login, string DisplayName, string Role)
 {
     public bool IsAdmin => Role == "admin";
+    public bool IsManager => Role == "manager";
+    public bool CanEditContent => IsAdmin || IsManager;
+    public string RoleCaption => Role switch { "admin" => "АДМИН", "manager" => "МЕНЕДЖЕР", _ => "" };
 }
 
 // ответ сервера: Status 0 — нет связи; Error — текст, который можно показать пользователю
@@ -51,7 +54,9 @@ public static class Api
     // роль или имя могли поменяться на сервере
     public static void UpdateUser(JsonElement user)
     {
-        User = user.Deserialize<ApiUser>(Web);
+        var updated = user.Deserialize<ApiUser>(Web);
+        if (updated != User) AppState.AccountChanged();
+        User = updated;
         Preferences.Default.Set("user", JsonSerializer.Serialize(User, Web));
     }
 
@@ -102,6 +107,8 @@ public static class Api
     public static Task<ApiResult> AdminStats() => Send(HttpMethod.Get, "/api/admin/stats");
     public static Task<ApiResult> AdminUsers() => Send(HttpMethod.Get, "/api/admin/users");
     public static Task<ApiResult> AdminUser(long id) => Send(HttpMethod.Get, $"/api/admin/users/{id}");
+    public static Task<ApiResult> SetManagerRole(long id, bool manager) =>
+        Send(HttpMethod.Put, $"/api/admin/users/{id}/role", new { role = manager ? "manager" : "user" });
     public static Task<ApiResult> ContentHistory(string name) => Send(HttpMethod.Get, $"/api/admin/content/{name}/history");
     public static Task<ApiResult> Rollback(string name, int version) =>
         Send(HttpMethod.Post, $"/api/admin/content/{name}/rollback/{version}");

@@ -4,7 +4,7 @@ ASP.NET Core (.NET 9) между приложением и PostgreSQL. Прил�
 
 ## Запуск на ПК
 
-1. Открой `PsyPath.sln` в Visual Studio, в списке запуска выбери `PsyPath.Api` и нажми F5. Откроется браузер с `/api/health`, там должно быть `{"status":"ok","schema":2}`.
+1. Открой `PsyPath.sln` в Visual Studio, в списке запуска выбери `PsyPath.Api` и нажми F5. Откроется браузер с `/api/health`, после применения всех миграций там должно быть `{"status":"ok","schema":3}`.
 2. Настройки лежат в `PsyPath.Api/appsettings.Development.json`: строка подключения к базе (пользователь `psypath_app`) и ключ токенов. Если файла нет, скопируй `appsettings.Development.example.json` под этим именем и впиши значения. Это секреты, на GitHub их не выкладывай (`.gitignore` уже исключает файл).
 3. API слушает порт 5080 на всех адресах ПК.
    - Эмулятор Android подключается по `http://10.0.2.2:5080`. Это адрес по умолчанию в приложении.
@@ -14,7 +14,12 @@ ASP.NET Core (.NET 9) между приложением и PostgreSQL. Прил�
 
 ## База
 
-Схема `psypath` создаётся скриптами `db/001_init.sql` и `db/002_top.sql`, по одному разу в порядке номеров.
+Схема `psypath` создаётся скриптами `db/001_init.sql`, `db/002_top.sql` и `db/003_manager.sql`, в порядке номеров.
+Перед обновлением API для роли менеджера примени `003_manager.sql` от владельца базы. Уже существующие аккаунты и прогресс сохраняются.
+
+Роль `manager` назначает и снимает администратор в приложении: Пользователи → карточка пользователя.
+Менеджер управляет справочником, уроками, опросниками и настройками контента; список пользователей, их результаты, статистика и смена ролей доступны только администратору.
+Для всех привилегированных запросов роль и блокировка проверяются в базе, поэтому старый JWT не сохраняет отозванные права.
 
 ## Запросы
 
@@ -28,7 +33,8 @@ ASP.NET Core (.NET 9) между приложением и PostgreSQL. Прил�
 | POST | `/api/me/lessons`, `/api/me/questionnaires` | вошедший |
 | GET | `/api/content/versions`, `/api/content/{lessons\|questionnaires\|rating\|reference}` | все |
 | GET | `/api/admin/stats`, `/api/admin/users` | админ |
-| PUT | `/api/admin/content/{name}` — `{ "version": N, "data": {...} }` | админ |
-| GET / POST | `/api/admin/content/{name}/history`, `/api/admin/content/{name}/rollback/{version}` | админ |
+| PUT | `/api/admin/users/{id}/role` — `{ "role": "manager" }` или `{ "role": "user" }` | админ; роль администратора не меняется |
+| PUT | `/api/admin/content/{name}` — `{ "version": N, "data": {...} }` | админ или менеджер |
+| GET / POST | `/api/admin/content/{name}/history`, `/api/admin/content/{name}/rollback/{version}` | админ или менеджер |
 
 Ошибки приходят в виде `{ "error": "текст" }`.

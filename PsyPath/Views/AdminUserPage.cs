@@ -9,6 +9,7 @@ namespace PsyPath.Views;
 public class AdminUserPage : AdminBase
 {
     readonly long id;
+    bool changingRole;
 
     public AdminUserPage(long id)
     {
@@ -19,6 +20,11 @@ public class AdminUserPage : AdminBase
 
     async Task Load()
     {
+        if (Api.User?.IsAdmin != true)
+        {
+            Show("ПОЛЬЗОВАТЕЛЬ", Message("Управление пользователями доступно только администратору.", Pal.RedInk));
+            return;
+        }
         var r = await Api.AdminUser(id);
         if (!r.Ok)
         {
@@ -31,10 +37,37 @@ public class AdminUserPage : AdminBase
 
         var head = new VerticalStackLayout { Spacing = 2 };
         head.Children.Add(Ui.Text(u.GetProperty("displayName").GetString()!.ToUpperInvariant(), 18, Pal.Ink, true));
-        head.Children.Add(Ui.Text("@" + u.GetProperty("login").GetString() +
-            (u.GetProperty("role").GetString() == "admin" ? "  //  АДМИН" : ""), 12, Pal.Ink2, true));
+        string role = u.GetProperty("role").GetString() ?? "user";
+        string caption = role switch { "admin" => "АДМИН", "manager" => "МЕНЕДЖЕР", _ => "ПОЛЬЗОВАТЕЛЬ" };
+        head.Children.Add(Ui.Text("@" + u.GetProperty("login").GetString() + "  //  " + caption, 12, Pal.Ink2, true));
         head.Children.Add(Ui.Text($"Регистрация: {Date(u.GetProperty("createdAt"))}, последний вход: {Date(u.GetProperty("lastLoginAt"))}", 11, Pal.Ink2));
         stack.Children.Add(Ui.Box(head, Pal.Paper, 12));
+
+        if (role is "user" or "manager")
+        {
+            var toggleRole = new Btn(role == "manager" ? "СНЯТЬ РОЛЬ МЕНЕДЖЕРА" : "НАЗНАЧИТЬ МЕНЕДЖЕРОМ", Pal.Paper2, Pal.Ink, 14)
+                { MinimumHeightRequest = 48 };
+            toggleRole.Clicked += async (_, _) =>
+            {
+                if (changingRole) return;
+                changingRole = true;
+                toggleRole.Enabled = false;
+                try
+                {
+                    bool manager = role != "manager";
+                    string question = manager
+                        ? "Пользователь сможет добавлять и редактировать справочник, уроки и опросники. Управление пользователями останется только у администратора."
+                        : "Пользователь потеряет доступ к редактированию контента. Его прогресс сохранится.";
+                    if (!await Dlg.Confirm(this, manager ? "НАЗНАЧИТЬ МЕНЕДЖЕРА?" : "СНЯТЬ РОЛЬ?", question, "ПОДТВЕРДИТЬ", "ОТМЕНА")) return;
+                    var result = await Api.SetManagerRole(id, manager);
+                    if (!result.Ok) { await Dlg.Alert(this, "РОЛЬ НЕ ИЗМЕНЕНА", result.Error); return; }
+                    await Load();
+                    await Dlg.Alert(this, "ГОТОВО", manager ? "Роль менеджера назначена." : "Роль менеджера снята.");
+                }
+                finally { changingRole = false; toggleRole.Enabled = true; }
+            };
+            stack.Children.Add(toggleRole);
+        }
 
         var grid = new Grid
         {

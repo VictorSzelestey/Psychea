@@ -1,3 +1,4 @@
+using System.Text.Json;
 using PsyPath.Services;
 using PsyPath.UI;
 
@@ -7,6 +8,7 @@ public class ProfilePage : DataPage
 {
     readonly Label syncInfo = Ui.Text("", 11, Pal.Ink2, true);
     Elephant? elephant;
+    bool active;
 
     // "student" → "СТУДЕНТ" и т.п.; ответ из онбординга показывается тут
     static string RoleTitle(string role) => role switch
@@ -21,14 +23,34 @@ public class ProfilePage : DataPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        active = true;
         Sync.Changed += ShowSync;
         ShowSync();
         elephant?.Start();
+        _ = RefreshAccount();
+    }
+
+    async Task RefreshAccount()
+    {
+        var user = Api.User;
+        if (user == null) return;
+        var result = await Api.Me();
+        if (!result.Ok || Api.User?.Id != user.Id) return;
+        if (result.Body.ValueKind != JsonValueKind.Object || !result.Body.TryGetProperty("user", out var account)) return;
+        try
+        {
+            var updated = account.Deserialize<ApiUser>(AppState.JsonOptions);
+            if (updated == null || updated.Id != user.Id || updated == Api.User) return;
+            Api.UpdateUser(account);
+            if (active) Refresh();
+        }
+        catch (JsonException ex) { CrashLog.Write("Refresh account", ex); }
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        active = false;
         Sync.Changed -= ShowSync;
         elephant?.Stop();
     }
@@ -70,15 +92,15 @@ public class ProfilePage : DataPage
         {
             var account = new VerticalStackLayout { Spacing = 2 };
             account.Children.Add(Ui.Text(user.DisplayName.ToUpperInvariant(), 16, Pal.Ink, true));
-            account.Children.Add(Ui.Text("@" + user.Login + (user.IsAdmin ? "  //  АДМИН" : ""), 11, Pal.Ink2, true));
+            account.Children.Add(Ui.Text("@" + user.Login + (user.RoleCaption.Length > 0 ? "  //  " + user.RoleCaption : ""), 11, Pal.Ink2, true));
             (syncInfo.Parent as Layout)?.Children.Remove(syncInfo);
             account.Children.Add(syncInfo);
             ShowSync();
             stack.Children.Add(Ui.Card(account, Pal.Paper2, 12));
 
-            if (user.IsAdmin)
+            if (user.CanEditContent)
             {
-                var admin = new Btn("АДМИН-ПАНЕЛЬ ▶", Pal.TealInk, Pal.Paper);
+                var admin = new Btn(user.IsAdmin ? "АДМИН-ПАНЕЛЬ ▶" : "УПРАВЛЕНИЕ КОНТЕНТОМ ▶", Pal.TealInk, Pal.Paper);
                 admin.Clicked += async (s, e) => await Push(new AdminPage());
                 stack.Children.Add(admin);
             }

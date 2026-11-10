@@ -17,6 +17,9 @@ public static class AppState
     // растёт при каждом сохранении: вкладки по нему понимают, что пора перестроиться
     public static int Version { get; private set; }
 
+    // Роль/имя изменились на сервере: обновить вкладки без изменения прогресса.
+    public static void AccountChanged() => Version++;
+
     static readonly JsonSerializerOptions Opt = new() { PropertyNameCaseInsensitive = true };
 
     // те же настройки, которыми читается контент: админка проверяет ими правки

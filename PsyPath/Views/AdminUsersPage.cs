@@ -5,15 +5,25 @@ namespace PsyPath.Views;
 
 public class AdminUsersPage : AdminBase
 {
+    bool loading;
     public AdminUsersPage()
     {
         Show("ПОЛЬЗОВАТЕЛИ", Message("ЗАГРУЗКА…"));
-        _ = Load();
     }
+
+    protected override void Refresh() => _ = Load();
 
     async Task Load()
     {
+        if (loading) return;
+        if (Api.User?.IsAdmin != true)
+        {
+            Show("ПОЛЬЗОВАТЕЛИ", Message("Нет доступа к управлению пользователями.", Pal.RedInk));
+            return;
+        }
+        loading = true;
         var r = await Api.AdminUsers();
+        loading = false;
         if (!r.Ok)
         {
             Show("ПОЛЬЗОВАТЕЛИ", Message(r.Error, Pal.RedInk));
@@ -26,10 +36,11 @@ public class AdminUsersPage : AdminBase
         {
             count++;
             string role = u.GetProperty("role").GetString() ?? "";
+            string caption = role switch { "admin" => "  //  АДМИН", "manager" => "  //  МЕНЕДЖЕР", _ => "" };
             var lastActive = u.GetProperty("lastActive");
             var box = new VerticalStackLayout { Spacing = 3 };
             box.Children.Add(Ui.Text(
-                $"{u.GetProperty("displayName").GetString()}  @{u.GetProperty("login").GetString()}" + (role == "admin" ? "  //  АДМИН" : ""),
+                $"{u.GetProperty("displayName").GetString()}  @{u.GetProperty("login").GetString()}" + caption,
                 14, Pal.Ink, true));
             box.Children.Add(Ui.Text(
                 $"РЕЙТИНГ {u.GetProperty("rating").GetDouble():0}  //  XP {u.GetProperty("totalXp").GetInt32()}  //  СЕРИЯ {u.GetProperty("streak").GetInt32()}",
