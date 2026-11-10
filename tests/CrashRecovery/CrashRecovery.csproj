@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../PsyPath/Models/Models.cs" Link="Models.cs" />
+    <Compile Include="../../PsyPath/Services/Api.cs" Link="Api.cs" />
+    <Compile Include="../../PsyPath/Services/AppState.cs" Link="AppState.cs" />
+    <Compile Include="../../PsyPath/Services/Sync.cs" Link="Sync.cs" />
+    <Compile Include="../../PsyPath/Services/Practice.cs" Link="Practice.cs" />
+    <Compile Include="../../PsyPath/Services/CardScheduler.cs" Link="CardScheduler.cs" />
+    <Compile Include="../../PsyPath/Views/FlashcardsPage.cs" Link="FlashcardsPage.cs" />
+  </ItemGroup>
+</Project>

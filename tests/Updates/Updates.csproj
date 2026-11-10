@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../PsyPath/Services/ReleaseNotes.cs" Link="ReleaseNotes.cs" />
+    <Compile Include="../../PsyPath/Services/Updater.cs" Link="Updater.cs" />
+    <None Include="../../PsyPath/Resources/Raw/changelog.json" Link="changelog.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../PsyPath/PsyPath.csproj" Link="AppProject.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

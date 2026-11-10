@@ -115,6 +115,10 @@ public class SettingsPage : AdminBase
         s.Children.Add(Form.Choice("АВТООБНОВЛЕНИЕ", OnOff, Settings.AutoUpdate ? "1" : "0", v => Settings.AutoUpdate = v == "1"));
         s.Children.Add(Form.Hint("Раз в сутки при запуске приложение проверяет новую версию и предлагает её установить."));
 
+        var news = new Btn("ЧТО НОВОГО", Pal.Paper2, Pal.Ink, 15) { MinimumHeightRequest = 48 };
+        news.Clicked += async (_, _) => await Push(new ReleaseNotesPage());
+        s.Children.Add(news);
+
         var check = new Btn("ПРОВЕРИТЬ ОБНОВЛЕНИЯ", Pal.Violet, Pal.Paper, 15);
         check.Clicked += async (o, e) => await CheckUpdates();
         s.Children.Add(check);
