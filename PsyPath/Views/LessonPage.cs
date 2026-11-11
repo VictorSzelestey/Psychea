@@ -682,7 +682,7 @@ public class LessonPage : BasePage
         Sound.Play("win");
 
         var stack = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 10, 18, 30) };
-        // карточка итогов — она же картинка для «Поделиться»
+        // Карточка на экране; для «Поделиться» отдельно рисуется PNG по макету.
         var card = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(0, 0, 0, 6), BackgroundColor = Pal.Paper };
         card.Children.Add(new Heading(lesson != null ? "УРОК ПРОЙДЕН" : "ПОВТОР ПРОЙДЕН", 26));
         card.Children.Add(Ui.Text("▶ " + title.ToUpperInvariant(), 12, Pal.Ink2, true));
@@ -749,7 +749,7 @@ public class LessonPage : BasePage
 
         stack.Children.Add(Form.Link("ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ", Pal.TealInk, async () =>
         {
-            if (!await ShareCard.Share(card, "Психея: " + title))
+            if (!await ShareCard.ShareLesson(new LessonShareResult(xpGained, accuracy, ratingDelta, lesson == null), "Психея: " + title))
                 await Dlg.Alert(this, "НЕ ВЫШЛО", "Не удалось сделать картинку. Попробуй ещё раз.");
         }, TextAlignment.Center));
 

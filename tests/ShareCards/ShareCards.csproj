@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <Compile Include="../../PsyPath/Services/LessonShareCardRenderer.cs" Link="LessonShareCardRenderer.cs" />
+    <None Include="../../PsyPath/Resources/Raw/share_mascot.png" Link="share_mascot.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../PsyPath/Resources/Fonts/Nunito-Regular.ttf" Link="regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../PsyPath/Resources/Fonts/Nunito-ExtraBold.ttf" Link="bold.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
