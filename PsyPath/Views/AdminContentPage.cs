@@ -13,7 +13,7 @@ public class AdminContentPage : AdminBase
     readonly string title;
     JsonNode? root;
     int version;
-    // опросники, которые есть в этой версии приложения, но ещё не опубликованы на сервере
+    // опросники (или юниты с уроками), которые есть в этой версии приложения, но ещё не опубликованы на сервере
     List<JsonNode> unpublished = new();
 
     public AdminContentPage(string name)
@@ -36,7 +36,70 @@ public class AdminContentPage : AdminBase
         version = r.Body.GetProperty("version").GetInt32();
         root = JsonNode.Parse(r.Body.GetProperty("data").GetRawText());
         if (name == "questionnaires") await FindUnpublished();
+        if (name == "lessons") await FindUnpublishedLessons();
         Show(title, Build(), animate: true);
+    }
+
+    // по юниту на карточку: в копии юнита только уроки, id которых на сервере нет
+    async Task FindUnpublishedLessons()
+    {
+        var onServer = LessonIds(null);
+        var builtIn = JsonNode.Parse(await AppState.ReadAssetText("lessons.json"))!["sections"]!.AsArray();
+        unpublished = new();
+        foreach (var sec in builtIn)
+        {
+            var fresh = sec!["lessons"]!.AsArray().Where(l => !onServer.Contains(Str(l!, "id"))).Select(l => l!.DeepClone()).ToArray();
+            if (fresh.Length == 0) continue;
+            var part = sec.DeepClone();
+            part["lessons"] = new JsonArray(fresh);
+            unpublished.Add(part);
+        }
+    }
+
+    View UnpublishedSectionCard(JsonNode sec)
+    {
+        string secTitle = Str(sec, "title");
+        int secId = sec["id"]!.GetValue<int>();
+        var lessons = sec["lessons"]!.AsArray();
+        int tasks = lessons.Sum(l => l!["tasks"]?.AsArray().Count ?? 0);
+        string json = lessons.ToJsonString();
+
+        var box = new VerticalStackLayout { Spacing = 6 };
+        box.Children.Add(Ui.Text($"ЮНИТ {secId}  //  {secTitle.ToUpperInvariant()}", 14, Pal.Ink, true));
+        box.Children.Add(Ui.Text($"{lessons.Count} уроков, {tasks} заданий. Есть в приложении, на сервере ещё нет.", 12, Pal.Ink));
+
+        var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.Paper, 14);
+        publish.Clicked += async (s, e) =>
+        {
+            if (!await Dlg.Confirm(this, "ОПУБЛИКОВАТЬ?", $"Уроки юнита «{secTitle}» ({lessons.Count}) появятся у всех пользователей при следующем запуске приложения.", "ОПУБЛИКОВАТЬ", "ОТМЕНА"))
+                return;
+            publish.Enabled = false;
+            var error = await SaveDoc(doc =>
+            {
+                var sections = doc["sections"]!.AsArray();
+                var target = sections.FirstOrDefault(n => n!["id"]!.GetValue<int>() == secId);
+                if (target == null)
+                {
+                    // новый юнит встаёт по порядку id, даже если юниты публикуют вразнобой
+                    target = JsonNode.Parse(sec.ToJsonString())!;
+                    target["lessons"] = new JsonArray();
+                    sections.Insert(sections.Count(n => n!["id"]!.GetValue<int>() < secId), target);
+                }
+                foreach (var lesson in JsonNode.Parse(json)!.AsArray().ToArray())
+                    target["lessons"]!.AsArray().Add(lesson!.DeepClone());
+                return doc;
+            });
+            if (error != null)
+            {
+                publish.Enabled = true;
+                await Dlg.Alert(this, "НЕ ВЫШЛО", error);
+                return;
+            }
+            unpublished.Remove(sec);
+            Show(title, Build());
+        };
+        box.Children.Add(publish);
+        return Ui.Card(box, Pal.Amber, 12);
     }
 
     async Task FindUnpublished()
@@ -83,6 +146,9 @@ public class AdminContentPage : AdminBase
 
         if (name == "lessons")
         {
+            foreach (var sec in unpublished)
+                stack.Children.Add(UnpublishedSectionCard(sec));
+
             var sections = root!["sections"]!.AsArray();
             for (int si = 0; si < sections.Count; si++)
             {

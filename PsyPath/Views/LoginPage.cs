@@ -103,8 +103,10 @@ public class LoginPage : BasePage
             return;
         }
 
+        // пока тянется прогресс и строится главный экран, вместо чёрной паузы — манул
+        await SwapBody(Ui.Waiting("ЗАГРУЖАЮ ТВОЙ ПРОГРЕСС…"));
         await AppState.AdoptServerProgress();
-        await SwitchRoot(Start.Home());
+        await SwitchRoot(Start.Home(), fade: false);
     }
 
     void Show(string text, Color color)

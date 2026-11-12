@@ -342,9 +342,10 @@ public abstract class BasePage : ContentPage
     }
 
     // замена корневой страницы окна: загрузка → вкладки, сброс → онбординг
-    protected async Task SwitchRoot(Page next)
+    // fade: false — старый экран остаётся видимым, пока строится новый (без чёрной паузы)
+    protected async Task SwitchRoot(Page next, bool fade = true)
     {
-        if (Content is View v) await v.Fade(0, 200);
+        if (fade && Content is View v) await v.Fade(0, 200);
         Application.Current!.Windows[0].Page = next;
     }
 

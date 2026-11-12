@@ -71,6 +71,17 @@ public static class Ui
         return img;
     }
 
+    // экран ожидания: манул покачивается, пока грузится следующий экран
+    public static View Waiting(string text)
+    {
+        var cat = Mascot(170);
+        Anim.Idle(cat, 170 / 40.0, cycles: 1000);
+        var box = new VerticalStackLayout { Spacing = 16, VerticalOptions = LayoutOptions.Center, HorizontalOptions = LayoutOptions.Center };
+        box.Children.Add(cat);
+        box.Children.Add(Text(text, 14, Pal.Ink2, true, TextAlignment.Center));
+        return box;
+    }
+
     // маскот с настроением под конкретный экран: файл mood_*.png в Resources/Images
     public static Image Mood(string name, double height)
     {
