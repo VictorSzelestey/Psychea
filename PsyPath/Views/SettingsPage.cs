@@ -76,6 +76,9 @@ public class SettingsPage : AdminBase
             }));
         s.Children.Add(Form.Hint("Приходит, только если в этот день ты ещё не занимался. Серия сгорает в полночь."));
 
+        s.Children.Add(Form.Section("ПОМОЩЬ"));
+        s.Children.Add(Form.Link("КАК ПОЛЬЗОВАТЬСЯ ПРИЛОЖЕНИЕМ", Pal.Violet, async () => await Push(new OnboardingPage(tourOnly: true)), TextAlignment.Center));
+
         s.Children.Add(Form.Section("ДАННЫЕ"));
         s.Children.Add(Form.Link("СБРОСИТЬ ПРОГРЕСС", Pal.RedInk, async () =>
         {
