@@ -43,6 +43,15 @@ public class LessonPage : BasePage
     // введённый ответ засчитан с опечаткой
     bool typo;
 
+    // теория перед заданиями: номер показанной карточки, -1 — уже идут задания
+    readonly List<TheoryCard> theory;
+    int theoryAt = -1;
+
+    // подсказки: ограниченное число раз за весь урок (не за задание)
+    int hintsLeft = 2;
+    readonly Label hintIcon = Ui.Text("?", 18, Pal.TealInk, true, TextAlignment.Center);
+    readonly Label hintCount = Ui.Text("2", 10, Pal.Ink2, true, TextAlignment.Center);
+
     public LessonPage(Lesson lesson) : this(lesson, lesson.Title, Practice.ForLesson(lesson, AppState.PickTasks(lesson, 8)))
     {
     }
@@ -56,6 +65,7 @@ public class LessonPage : BasePage
     {
         this.lesson = lesson;
         this.title = title;
+        theory = lesson?.Theory ?? new();
 
         // «▸ В СПРАВОЧНИК: ТЕРМИН» — статья по теме задания, если она есть
         fbRef = (Label)Form.Link("", Pal.TealInk, async () =>
@@ -83,7 +93,10 @@ public class LessonPage : BasePage
 
         BuildLayout();
         actionBtn.Clicked += OnAction;
-        _ = ShowNext();
+        if (theory.Count > 0)
+            _ = ShowTheory(0);
+        else
+            _ = ShowNext();
     }
 
     void BuildLayout()
@@ -105,7 +118,9 @@ public class LessonPage : BasePage
             ColumnDefinitions =
             {
                 new ColumnDefinition(GridLength.Auto),
-                new ColumnDefinition(GridLength.Star)
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto)
             }
         };
         close.VerticalTextAlignment = TextAlignment.Center;
@@ -113,6 +128,60 @@ public class LessonPage : BasePage
         progress.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(progress, 1);
         header.Children.Add(progress);
+
+        // книжка — конспект теории урока, можно открыть посреди заданий
+        if (theory.Count > 0)
+        {
+            var book = new Grid { WidthRequest = 44, HeightRequest = 48, VerticalOptions = LayoutOptions.Center };
+            book.Children.Add(new Image
+            {
+                Source = "tab_book.png",
+                WidthRequest = 24,
+                HeightRequest = 24,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center
+            });
+            SemanticProperties.SetDescription(book, "Теория урока");
+            Ui.OnTap(book, async () =>
+            {
+                if (theoryAt >= 0 || lesson == null) return;
+                await Push(new TheoryPage(lesson));
+            });
+            Grid.SetColumn(book, 2);
+            header.Children.Add(book);
+        }
+
+        // «?» в углу — подсказка по текущему заданию, ограничена на весь урок
+        var hintBox = new VerticalStackLayout
+        {
+            Spacing = 0,
+            WidthRequest = 44,
+            HeightRequest = 48,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center
+        };
+        hintIcon.VerticalTextAlignment = TextAlignment.Center;
+        hintBox.Children.Add(hintIcon);
+        hintBox.Children.Add(hintCount);
+        SemanticProperties.SetDescription(hintBox, "Подсказка");
+        Ui.OnTap(hintBox, async () =>
+        {
+            if (cur == null || isChecked || theoryAt >= 0) return;
+            if (hintsLeft <= 0)
+            {
+                await Dlg.Alert(this, "ПОДСКАЗКИ", "На этот урок подсказки закончились.");
+                return;
+            }
+            hintsLeft--;
+            hintCount.Text = hintsLeft.ToString();
+            if (hintsLeft == 0) hintIcon.TextColor = Pal.Ink2;
+            string hint = string.IsNullOrWhiteSpace(cur.Explain)
+                ? "Подумай ещё раз — ответ напрямую связан с темой вопроса."
+                : cur.Explain;
+            await Dlg.Alert(this, "ПОДСКАЗКА", hint);
+        });
+        Grid.SetColumn(hintBox, 3);
+        header.Children.Add(hintBox);
 
         var topBox = new VerticalStackLayout { Spacing = 0 };
         topBox.Children.Add(header);
@@ -148,8 +217,8 @@ public class LessonPage : BasePage
             return;
         }
 
-        // первое задание показывает анимация входа страницы, остальные сменяются сдвигом
-        bool animate = cur != null;
+        // первый экран показывает анимация входа страницы, остальные сменяются сдвигом
+        bool animate = body.Children.Count > 0;
         actionBtn.Enabled = false;
         if (animate)
             await Task.WhenAll(body.Fade(0, 110), body.Move(-24, 0, 110, Easing.CubicIn));
@@ -176,9 +245,73 @@ public class LessonPage : BasePage
         }
     }
 
+    // карточка теории: заголовок и текст; её же показывает конспект TheoryPage
+    public static View TheoryCardView(TheoryCard card)
+    {
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text(card.Title, 19, Pal.Ink, true));
+        box.Children.Add(Ui.Text(card.Text, 16));
+        return Ui.Box(box, Pal.Paper, 16);
+    }
+
+    async Task ShowTheory(int i)
+    {
+        bool animate = body.Children.Count > 0;
+        actionBtn.Enabled = false;
+        if (animate)
+            await Task.WhenAll(body.Fade(0, 110), body.Move(-24, 0, 110, Easing.CubicIn));
+
+        theoryAt = i;
+        bool last = i == theory.Count - 1;
+        feedback.IsVisible = false;
+        actionBtn.Text = last ? "К ЗАДАНИЯМ ▶" : "ДАЛЕЕ ▶";
+        actionBtn.SetColors(Pal.Violet, Pal.Paper);
+
+        body.Children.Clear();
+        body.Children.Add(Ui.Text($"ТЕОРИЯ  //  {i + 1} ИЗ {theory.Count}", 11, Pal.TealInk, true));
+        if (i == 0)
+        {
+            body.Children.Add(Ui.Mood("study", 110));
+            body.Children.Add(Ui.Text("Сначала немного теории — с ней задания решаются легче.", 13, Pal.Ink2));
+        }
+        body.Children.Add(TheoryCardView(theory[i]));
+        if (!last)
+            body.Children.Add(Form.Link("ПРОПУСТИТЬ ТЕОРИЮ ▸", Pal.Ink2, async () => await StartTasks(), TextAlignment.Center));
+        _ = scroll.ScrollToAsync(0, 0, false);
+        actionBtn.Enabled = true;
+
+        if (animate)
+        {
+            body.TranslationX = 24;
+            await Task.WhenAll(body.Fade(1, 180), body.Move(0, 0, 180, Easing.CubicOut));
+        }
+    }
+
+    async Task StartTasks()
+    {
+        if (theoryAt < 0 || switching) return;
+        switching = true;
+        theoryAt = -1;
+        await ShowNext();
+        switching = false;
+    }
+
     async void OnAction(object? sender, EventArgs e)
     {
-        if (cur == null || switching) return;
+        if (switching) return;
+        if (theoryAt >= 0)
+        {
+            if (theoryAt == theory.Count - 1)
+            {
+                await StartTasks();
+                return;
+            }
+            switching = true;
+            await ShowTheory(theoryAt + 1);
+            switching = false;
+            return;
+        }
+        if (cur == null) return;
         if (!isChecked)
         {
             DoCheck(null);

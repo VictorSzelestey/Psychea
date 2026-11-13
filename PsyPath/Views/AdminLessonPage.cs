@@ -61,6 +61,24 @@ public class AdminLessonPage : AdminFormPage
         return JsonSerializer.Serialize(lesson, Out);
     }
 
+    static string TheoryToText(List<TheoryCard>? cards) =>
+        string.Join("\n\n", (cards ?? new()).Select(c => c.Title + "\n" + c.Text));
+
+    // пустой текст — у урока нет теории, в JSON поле не пишется
+    static List<TheoryCard>? TheoryFromText(string text)
+    {
+        var cards = Regex.Split(text.Replace("\r", ""), @"\n\s*\n")
+            .Select(block => block.Trim())
+            .Where(block => block.Length > 0)
+            .Select(block =>
+            {
+                var lines = block.Split('\n').Select(x => x.Trim()).ToList();
+                return new TheoryCard { Title = lines[0], Text = string.Join(" ", lines.Skip(1)) };
+            })
+            .ToList();
+        return cards.Count > 0 ? cards : null;
+    }
+
     public static string TypeName(string type) =>
         Types.FirstOrDefault(t => t.Value == type).Caption ?? type;
 
@@ -81,6 +99,10 @@ public class AdminLessonPage : AdminFormPage
         s.Children.Add(Form.Choice("РЕКОМЕНДУЕМЫЙ УРОВЕНЬ", levels, lesson.RecommendedLevel.ToString(),
             v => lesson.RecommendedLevel = int.Parse(v)));
         s.Children.Add(Form.Hint("Ученик на 2 уровня выше рекомендуемого считается освоившим урок без прохождения."));
+
+        s.Children.Add(Form.Section($"ТЕОРИЯ ({lesson.Theory?.Count ?? 0})"));
+        s.Children.Add(Form.Field("КАРТОЧКИ", TheoryToText(lesson.Theory), v => lesson.Theory = TheoryFromText(v), multiline: true,
+            hint: "Карточки разделяй пустой строкой. Первая строка карточки — заголовок, дальше текст. Ученик видит их перед заданиями."));
 
         s.Children.Add(Form.Section($"ЗАДАНИЯ ({lesson.Tasks.Count})"));
         s.Children.Add(Form.Hint("За один заход ученик получает до 8 заданий, подобранных под его уровень. Ошибки повторяются в конце."));

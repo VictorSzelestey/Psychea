@@ -1,3 +1,4 @@
+using PsyPath.Models;
 using PsyPath.Services;
 using PsyPath.UI;
 
@@ -8,15 +9,23 @@ public class OnboardingPage : BasePage
     static readonly string[] RoleIds = { "student", "psychologist", "curious" };
     static readonly string[] RoleTitles = { "СТУДЕНТ", "ПСИХОЛОГ", "ПРОСТО ИНТЕРЕСНО" };
 
-    // 0..2 — точки внизу трёх вступительных экранов (экран цели своих точек не показывает)
+    // экраны с точками: привет, роль, три экрана обучения, итог (экран цели своих точек не показывает)
+    const int Steps = 6;
+    const int TourFirst = 2;
+    const int TourSteps = 3;
+
+    // 0..Steps-1 — какая точка внизу горит
     int dot;
     bool busy;
+    // tourOnly — только обучение, открыто из настроек; в конце возврат назад
+    readonly bool tourOnly;
     // текущий экран; при повороте собирается заново под новую ориентацию
     Func<View> screen;
 
-    public OnboardingPage() : base(true)
+    public OnboardingPage(bool tourOnly = false) : base(true)
     {
-        screen = IntroView;
+        this.tourOnly = tourOnly;
+        screen = tourOnly ? LessonTourView : IntroView;
         SetBody(screen());
     }
 
@@ -46,7 +55,12 @@ public class OnboardingPage : BasePage
         return box;
     }
 
-    View Dots() => Ui.Text(string.Join(" ", Enumerable.Range(0, 3).Select(i => i == dot ? "●" : "○")), 16, Pal.Ink, true, TextAlignment.Center);
+    View Dots()
+    {
+        int count = tourOnly ? TourSteps : Steps;
+        int at = tourOnly ? dot - TourFirst : dot;
+        return Ui.Text(string.Join(" ", Enumerable.Range(0, count).Select(i => i == at ? "●" : "○")), 16, Pal.Ink, true, TextAlignment.Center);
+    }
 
     // общий каркас для текстовых слайдов с котом и кнопкой «ДАЛЕЕ»
     View TextSlide(string text, View mascot, Func<Task> onNext)
@@ -61,13 +75,14 @@ public class OnboardingPage : BasePage
             }
         };
 
-        root.Children.Add(Header("ПСИХЕЯ // СТАРТ"));
+        bool tour = dot >= TourFirst && dot < TourFirst + TourSteps;
+        root.Children.Add(Header(tour ? "КАК ЭТО РАБОТАЕТ" : "ПСИХЕЯ // СТАРТ"));
 
         var mid = new VerticalStackLayout { Spacing = 8, VerticalOptions = LayoutOptions.Center };
         mid.Children.Add(Bubble(text));
         mid.Children.Add(mascot);
-        // в горизонтальном режиме по высоте может не влезть
-        View center = IsLandscape ? new ScrollView { Content = mid } : mid;
+        // в горизонтальном режиме и на экранах обучения по высоте может не влезть
+        View center = IsLandscape || tour ? new ScrollView { Content = mid } : mid;
         Grid.SetRow(center, 1);
         root.Children.Add(center);
 
@@ -121,7 +136,7 @@ public class OnboardingPage : BasePage
                 busy = true;
                 AppState.P.Role = id;
                 AppState.Save();
-                await Show(OutroView);
+                await Show(LessonTourView);
                 busy = false;
             });
             stack.Children.Add(row);
@@ -134,9 +149,86 @@ public class OnboardingPage : BasePage
         return root;
     }
 
+    // обучение: как устроен урок
+    View LessonTourView()
+    {
+        dot = TourFirst;
+        var demo = new VerticalStackLayout { Spacing = 10, Margin = new Thickness(20, 0) };
+        demo.Children.Add(Ui.Text("ТЕОРИЯ  //  1 ИЗ 3", 11, Pal.TealInk, true));
+        demo.Children.Add(LessonPage.TheoryCardView(new TheoryCard
+        {
+            Title = "Психика и сознание",
+            Text = "Сознание — только часть психики. Многое идёт без осознания: например, водитель ведёт машину «на автомате»."
+        }));
+        demo.Children.Add(Ui.Text("Потом задания: выбери ответ, верно или неверно, соедини пары, расставь по порядку.", 13, Pal.Ink2));
+        return TextSlide(
+            "Ничего не знаешь о психологии? Не страшно! Каждый урок начинается с короткой теории простыми словами, а потом — задания по ней.",
+            demo,
+            async () => await Show(HelpTourView));
+    }
+
+    // обучение: помощники внутри урока
+    View HelpTourView()
+    {
+        dot = TourFirst + 1;
+        var demo = new VerticalStackLayout { Spacing = 10, Margin = new Thickness(20, 0) };
+        demo.Children.Add(TourRow(new Image { Source = "tab_book.png", WidthRequest = 26, HeightRequest = 26 },
+            "Книжка в шапке урока — конспект теории. Открывай, если забыл."));
+        demo.Children.Add(TourRow(Ui.Text("?", 22, Pal.TealInk, true, TextAlignment.Center),
+            "Подсказка к заданию. На урок их две — береги."));
+        demo.Children.Add(TourRow(new PixelIcon(Icons.Target, Pal.Ink, 26, Pal.Paper),
+            "Ошибся — задание вернётся в конце урока, а потом в «Работе над ошибками»."));
+        demo.Children.Add(Ui.Mood("study", IsLandscape ? 70 : 120));
+        return TextSlide(
+            "Застрял на вопросе? Помощники всегда под рукой.",
+            demo,
+            async () => await Show(AppTourView));
+    }
+
+    // обучение: что ещё есть в приложении
+    View AppTourView()
+    {
+        dot = TourFirst + 2;
+        var demo = new VerticalStackLayout { Spacing = 10, Margin = new Thickness(20, 0) };
+        demo.Children.Add(TourRow(new PixelIcon(Icons.Brain, Pal.Violet, 26, Pal.Amber),
+            "XP — опыт за верные ответы. С ним растут уровень и рейтинг."));
+        demo.Children.Add(TourRow(new PixelIcon(Icons.Flame, Pal.Orange, 26, Pal.Yellow),
+            "Серия — сколько дней подряд ты занимаешься."));
+        demo.Children.Add(TourRow(new Image { Source = "tab_quiz.png", WidthRequest = 26, HeightRequest = 26 },
+            "Опросники — узнай свой темперамент и черты личности."));
+        demo.Children.Add(TourRow(new Image { Source = "tab_book.png", WidthRequest = 26, HeightRequest = 26 },
+            "Справочник — все термины, а карточки помогают их запомнить."));
+        return TextSlide(
+            "Внизу экрана — вкладки: Главная с уроками, Опросники, Справочник и Профиль.",
+            demo,
+            async () =>
+            {
+                if (tourOnly) await Pop();
+                else await Show(OutroView);
+            });
+    }
+
+    // строка обучения: значок слева, пояснение справа
+    static View TourRow(View icon, string text)
+    {
+        var g = new Grid
+        {
+            ColumnSpacing = 12,
+            ColumnDefinitions = { new ColumnDefinition(new GridLength(36)), new ColumnDefinition(GridLength.Star) }
+        };
+        icon.HorizontalOptions = LayoutOptions.Center;
+        icon.VerticalOptions = LayoutOptions.Center;
+        g.Children.Add(icon);
+        var label = Ui.Text(text, 14);
+        label.VerticalTextAlignment = TextAlignment.Center;
+        Grid.SetColumn(label, 1);
+        g.Children.Add(label);
+        return Ui.Box(g, Pal.Paper, 12);
+    }
+
     View OutroView()
     {
-        dot = 2;
+        dot = Steps - 1;
         return TextSlide(
             "Проходи опросники, отвечай на вопросы без лимита попыток и держи серию дней. Всё просто!",
             Ui.Mood("study", IsLandscape ? 110 : 260),

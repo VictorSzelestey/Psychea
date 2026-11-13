@@ -15,6 +15,8 @@ public class AdminContentPage : AdminBase
     int version;
     // опросники (или юниты с уроками), которые есть в этой версии приложения, но ещё не опубликованы на сервере
     List<JsonNode> unpublished = new();
+    // теория уроков из этой версии приложения для уроков, которые на сервере есть, но без теории: id урока → карточки
+    Dictionary<string, JsonNode> theoryUnpublished = new();
 
     public AdminContentPage(string name)
     {
@@ -54,6 +56,49 @@ public class AdminContentPage : AdminBase
             part["lessons"] = new JsonArray(fresh);
             unpublished.Add(part);
         }
+
+        // уроки на сервере без теории, у которых она есть во встроенном lessons.json
+        var builtInTheory = builtIn.SelectMany(sec => sec!["lessons"]!.AsArray())
+            .Where(l => l!["theory"] is JsonArray a && a.Count > 0)
+            .ToDictionary(l => Str(l!, "id"), l => l!["theory"]!);
+        theoryUnpublished = root!["sections"]!.AsArray()
+            .SelectMany(sec => sec!["lessons"]!.AsArray())
+            .Where(l => !(l!["theory"] is JsonArray a && a.Count > 0) && builtInTheory.ContainsKey(Str(l!, "id")))
+            .ToDictionary(l => Str(l!, "id"), l => builtInTheory[Str(l!, "id")]);
+    }
+
+    // одна карточка на все уроки без теории: задания на сервере не трогаются, дописывается только теория
+    View UnpublishedTheoryCard()
+    {
+        var box = new VerticalStackLayout { Spacing = 6 };
+        box.Children.Add(Ui.Text("ТЕОРИЯ К УРОКАМ", 14, Pal.Ink, true));
+        box.Children.Add(Ui.Text($"Уроков без теории на сервере: {theoryUnpublished.Count}. В приложении она уже есть. Задания и правки на сервере не изменятся — добавится только теория.", 12, Pal.Ink));
+
+        var publish = new Btn("ДОБАВИТЬ ТЕОРИЮ ДЛЯ ВСЕХ", Pal.Violet, Pal.Paper, 14);
+        publish.Clicked += async (s, e) =>
+        {
+            if (!await Dlg.Confirm(this, "ДОБАВИТЬ ТЕОРИЮ?", $"Теория появится в {theoryUnpublished.Count} уроках у всех пользователей при следующем запуске приложения.", "ДОБАВИТЬ", "ОТМЕНА"))
+                return;
+            publish.Enabled = false;
+            var add = theoryUnpublished;
+            var error = await SaveDoc(doc =>
+            {
+                foreach (var lesson in doc["sections"]!.AsArray().SelectMany(sec => sec!["lessons"]!.AsArray()))
+                    if (add.TryGetValue(Str(lesson!, "id"), out var theory) && !(lesson!["theory"] is JsonArray a && a.Count > 0))
+                        lesson!["theory"] = theory.DeepClone();
+                return doc;
+            });
+            if (error != null)
+            {
+                publish.Enabled = true;
+                await Dlg.Alert(this, "НЕ ВЫШЛО", error);
+                return;
+            }
+            theoryUnpublished = new();
+            Show(title, Build());
+        };
+        box.Children.Add(publish);
+        return Ui.Card(box, Pal.Amber, 12);
     }
 
     View UnpublishedSectionCard(JsonNode sec)
@@ -148,6 +193,8 @@ public class AdminContentPage : AdminBase
         {
             foreach (var sec in unpublished)
                 stack.Children.Add(UnpublishedSectionCard(sec));
+            if (theoryUnpublished.Count > 0)
+                stack.Children.Add(UnpublishedTheoryCard());
 
             var sections = root!["sections"]!.AsArray();
             for (int si = 0; si < sections.Count; si++)

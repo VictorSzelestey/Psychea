@@ -20,8 +20,20 @@ public class Lesson
 {
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
+
+    // карточки теории перед заданиями; у урока без теории null и в JSON не пишется
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<TheoryCard>? Theory { get; set; }
+
     public int RecommendedLevel { get; set; } = 1;
     public List<TaskItem> Tasks { get; set; } = new();
+}
+
+// карточка теории: заголовок и короткий текст простыми словами
+public class TheoryCard
+{
+    public string Title { get; set; } = "";
+    public string Text { get; set; } = "";
 }
 
 public class TaskItem

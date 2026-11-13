@@ -58,7 +58,8 @@ public class LoadingPage : BasePage
         }
 
         await played;
-        await SwitchRoot(Api.LoggedIn ? Start.Home() : new NavigationPage(new LoginPage()));
+        // без затухания: заставка видна, пока строится следующий экран, иначе мелькает пустое окно
+        await SwitchRoot(Api.LoggedIn ? Start.Home() : new NavigationPage(new LoginPage()), fade: false);
         _ = Start.OfferUpdate();
     }
 }

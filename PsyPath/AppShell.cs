@@ -10,6 +10,8 @@ public class AppShell : Shell
     // tab — какая вкладка открыта сразу (после смены размера текста — профиль)
     public AppShell(int tab = 0)
     {
+        // фон, пока первая вкладка ещё не нарисована: без него на долю секунды виден чёрный
+        BackgroundColor = Pal.Bg;
         Shell.SetNavBarIsVisible(this, false);
         Shell.SetTabBarBackgroundColor(this, Pal.Paper);
         Shell.SetTabBarForegroundColor(this, Pal.Violet);
