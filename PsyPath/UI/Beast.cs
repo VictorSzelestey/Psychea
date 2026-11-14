@@ -76,7 +76,6 @@ public class Beast : GraphicsView
 
     readonly Kind kind;
     readonly SpriteDrawable drawable = new();
-    IDispatcherTimer? timer;
     bool active;
     int run;   // номер запуска: отложенный кадр от прежнего запуска не трогает новый
     int frame;
@@ -150,10 +149,7 @@ public class Beast : GraphicsView
         if (!ok || my != run || Anim.Reduced) return;
 
         frame = 0;
-        timer = Dispatcher.CreateTimer();
-        timer.IsRepeating = false;
-        timer.Tick += (s, e) => Advance(my);
-        Schedule(kind.FrameMs[0]);
+        Schedule(my, kind.FrameMs[0]);
     }
 
     // кадр 0 — нейтральная поза: при возврате на экран и на картинке «Поделиться» глаза открыты
@@ -161,18 +157,14 @@ public class Beast : GraphicsView
     {
         active = false;
         run++;
-        timer?.Stop();
-        timer = null;
         drawable.Frame = 0;
         Invalidate();
     }
 
-    void Schedule(int ms)
-    {
-        if (timer == null) return;
-        timer.Interval = TimeSpan.FromMilliseconds(ms);
-        timer.Start();
-    }
+    // следующий кадр — разовым отложенным вызовом. Одноразовый IDispatcherTimer для этого не годится:
+    // внутри Tick он ещё считается запущенным, Start там ничего не делает, а после Tick таймер сам останавливается
+    void Schedule(int my, int ms) =>
+        Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(ms), () => Advance(my));
 
     async void Advance(int my)
     {
@@ -182,14 +174,14 @@ public class Beast : GraphicsView
         {
             drawable.Frame = frame;
             Invalidate();
-            Schedule(kind.FrameMs[frame]);
+            Schedule(my, kind.FrameMs[frame]);
         }
         else if (frame == FrameCount)
         {
             // проход закончен: спокойная поза и пауза
             drawable.Frame = 0;
             Invalidate();
-            Schedule(RestMs);
+            Schedule(my, RestMs);
         }
         else
         {
@@ -197,7 +189,7 @@ public class Beast : GraphicsView
             if (my != run) return;
             // лист не загрузился — просто ещё одна пауза
             frame = ok ? 0 : FrameCount;
-            Schedule(ok ? kind.FrameMs[0] : RestMs);
+            Schedule(my, ok ? kind.FrameMs[0] : RestMs);
         }
     }
 }
