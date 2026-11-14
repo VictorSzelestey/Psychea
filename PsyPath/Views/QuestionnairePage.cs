@@ -19,6 +19,8 @@ public class QuestionnairePage : BasePage
         ShowIntro();
     }
 
+    protected override Music.Zone MusicZone => Music.Zone.Quiz;
+
     protected override void OnDisappearing()
     {
         base.OnDisappearing();

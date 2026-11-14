@@ -135,6 +135,39 @@ public static class Form
         return Labeled(label, grid, null, null);
     }
 
+    // ползунок 0–100 с процентами справа; set получает целое значение при каждом сдвиге
+    public static View Percent(string label, int current, Action<int> set)
+    {
+        var value = Ui.Text($"{current}%", 12, Pal.Ink, true, TextAlignment.End);
+        value.VerticalTextAlignment = TextAlignment.Center;
+        value.WidthRequest = 48;
+        var slider = new Slider(0, 100, current)
+        {
+            MinimumTrackColor = Pal.Violet,
+            MaximumTrackColor = Pal.Line,
+            ThumbColor = Pal.Violet,
+            MinimumHeightRequest = 48
+        };
+        int last = current;
+        slider.ValueChanged += (s, e) =>
+        {
+            int n = (int)Math.Round(e.NewValue);
+            if (n == last) return;
+            last = n;
+            value.Text = $"{n}%";
+            set(n);
+        };
+        var row = new Grid
+        {
+            ColumnSpacing = 8,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
+        };
+        row.Children.Add(slider);
+        Grid.SetColumn(value, 1);
+        row.Children.Add(value);
+        return Labeled(label, row, null, null);
+    }
+
     static View Labeled(string label, View input, string? hint, View? error)
     {
         var box = new VerticalStackLayout { Spacing = 3 };

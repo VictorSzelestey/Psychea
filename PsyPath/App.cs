@@ -18,11 +18,13 @@ public class App : Application
         CrashLog.Write("Lifecycle", "Resume");
         _ = Sync.Flush();
         Reminders.Update();
+        Music.Wake();
     }
 
     protected override void OnSleep()
     {
         CrashLog.Write("Lifecycle", "Sleep");
+        Music.Sleep();
         base.OnSleep();
     }
 }

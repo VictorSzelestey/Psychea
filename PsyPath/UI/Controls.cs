@@ -296,6 +296,7 @@ public abstract class BasePage : ContentPage
     {
         base.OnAppearing();
         CrashLog.Write("Page", GetType().Name);
+        Music.Enter(MusicZone);
         navigating = false;
         Refresh();
         _ = PlayEnter();
@@ -303,6 +304,9 @@ public abstract class BasePage : ContentPage
 
     // вызывается перед каждым показом экрана, до анимации входа
     protected virtual void Refresh() { }
+
+    // опросники и карточки переопределяют: там музыку можно выключить в настройках
+    protected virtual Music.Zone MusicZone => Music.Zone.Menu;
 
     // false — экран показывается сразу, без въезда (заставка при запуске)
     protected virtual bool AnimateEnter => true;

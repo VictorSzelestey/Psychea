@@ -3,7 +3,7 @@ using PsyPath.UI;
 
 namespace PsyPath.Views;
 
-// настройки телефона: звук, размер текста, анимации, напоминание о серии, обновления, сброс и удаление
+// настройки телефона: звук, музыка, размер текста, анимации, напоминание о серии, обновления, сброс и удаление
 public class SettingsPage : AdminBase
 {
     readonly double fontAtOpen = Ui.Scale;
@@ -37,6 +37,21 @@ public class SettingsPage : AdminBase
             Sound.Play("ok");
         }));
         s.Children.Add(Form.Hint("Щелчок кнопок, сигнал верного и неверного ответа, мелодия в конце урока."));
+
+        s.Children.Add(Form.Section("МУЗЫКА"));
+        s.Children.Add(Form.Choice("ФОНОВАЯ МУЗЫКА", OnOff, Settings.MusicOn ? "1" : "0", v =>
+        {
+            Settings.MusicOn = v == "1";
+            Music.Apply();
+        }));
+        s.Children.Add(Form.Percent("ГРОМКОСТЬ МУЗЫКИ", Settings.MusicVolume, v =>
+        {
+            Settings.MusicVolume = v;
+            Music.Apply();
+        }));
+        s.Children.Add(Form.Choice("В ОПРОСНИКАХ", OnOff, Settings.MusicInQuiz ? "1" : "0", v => Settings.MusicInQuiz = v == "1"));
+        s.Children.Add(Form.Choice("В КАРТОЧКАХ", OnOff, Settings.MusicInCards ? "1" : "0", v => Settings.MusicInCards = v == "1"));
+        s.Children.Add(Form.Hint("Музыка звучит по кругу на всех экранах. В опросниках и карточках её можно выключить, чтобы не отвлекала."));
 
         s.Children.Add(Form.Choice("РАЗМЕР ТЕКСТА", new[] { ("1", "ОБЫЧНЫЙ"), ("1.15", "КРУПНЕЕ"), ("1.3", "КРУПНЫЙ") },
             Settings.FontScale.ToString(System.Globalization.CultureInfo.InvariantCulture), v =>

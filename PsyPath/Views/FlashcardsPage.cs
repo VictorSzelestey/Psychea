@@ -25,6 +25,8 @@ public class FlashcardsPage : AdminBase
         else ShowCard(false);
     }
 
+    protected override Music.Zone MusicZone => Music.Zone.Cards;
+
     void ShowEmpty()
     {
         var s = List();

@@ -24,6 +24,7 @@ public class LoadingPage : BasePage
         {
             await AppState.LoadAsync();
             _ = Sound.Init();
+            _ = Music.Init();
             Sync.Start();
             Reminders.Update();
         }

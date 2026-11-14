@@ -9,6 +9,32 @@ public static class Settings
         set => Preferences.Default.Set("set_sound", value);
     }
 
+    public static bool MusicOn
+    {
+        get => Preferences.Default.Get("set_music", true);
+        set => Preferences.Default.Set("set_music", value);
+    }
+
+    // громкость музыки в процентах, 0–100
+    public static int MusicVolume
+    {
+        get => Preferences.Default.Get("set_music_vol", 60);
+        set => Preferences.Default.Set("set_music_vol", Math.Clamp(value, 0, 100));
+    }
+
+    // музыка в опросниках и карточках: по умолчанию там тишина, чтобы не мешать думать
+    public static bool MusicInQuiz
+    {
+        get => Preferences.Default.Get("set_music_quiz", false);
+        set => Preferences.Default.Set("set_music_quiz", value);
+    }
+
+    public static bool MusicInCards
+    {
+        get => Preferences.Default.Get("set_music_cards", false);
+        set => Preferences.Default.Set("set_music_cards", value);
+    }
+
     // множитель размера всего текста: 1, 1.15 или 1.3
     public static double FontScale
     {
