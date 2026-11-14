@@ -293,16 +293,28 @@ public class PathPage : DataPage
             }
         };
 
-        var avatar = new Border
+        // выбранная в профиле аватарка, пока её нет — манул; нажатие открывает выбор
+        Border avatar;
+        if (Avatars.Exists(AppState.P.Avatar))
         {
-            Content = Ui.Mascot(62),
-            BackgroundColor = Pal.Paper,
-            Stroke = new SolidColorBrush(Pal.Line),
-            StrokeThickness = 2,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(26) },
-            WidthRequest = 52,
-            HeightRequest = 52
-        };
+            avatar = Avatars.View(AppState.P.Avatar, Api.User?.DisplayName ?? "", 52);
+            avatar.StrokeThickness = 2;
+        }
+        else
+            avatar = new Border
+            {
+                Content = Ui.Mascot(62),
+                BackgroundColor = Pal.Paper,
+                Stroke = new SolidColorBrush(Pal.Line),
+                StrokeThickness = 2,
+                StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(26) },
+                WidthRequest = 52,
+                HeightRequest = 52
+            };
+        // здесь аватарка — кнопка, поэтому диктор её видит
+        AutomationProperties.SetIsInAccessibleTree(avatar, true);
+        SemanticProperties.SetDescription(avatar, "Аватарка, нажми, чтобы сменить");
+        Ui.OnTap(avatar, async () => await Push(new AvatarPage()));
         g.Children.Add(avatar);
 
         var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 16, Icons.Flame, Pal.Orange, Pal.Yellow);

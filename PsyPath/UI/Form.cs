@@ -12,16 +12,16 @@ public static class Form
 
     public static View Hint(string text) => Ui.Text(text, 10, Pal.Ink2);
 
-    // раскрывающаяся вкладка: заголовок со стрелкой, под ним содержимое. sub — вложенная, помельче.
+    // раскрывающаяся вкладка: заголовок со стрелкой, под ним содержимое.
     // Открыта ли она, помнит экран: он пересобирается, например после смены размера текста
-    public static View Fold(string title, bool open, Action<bool> toggled, bool sub, params View[] content)
+    public static View Fold(string title, bool open, Action<bool> toggled, params View[] content)
     {
         var body = new VerticalStackLayout { Spacing = 10, IsVisible = open, Padding = new Thickness(0, 2, 0, 6) };
         foreach (var v in content) body.Children.Add(v);
 
-        var label = Ui.Text(title, sub ? 12 : 13, sub ? Pal.Ink : Pal.RedInk, true);
+        var label = Ui.Text(title, 13, Pal.RedInk, true);
         label.VerticalTextAlignment = TextAlignment.Center;
-        var arrow = Ui.Text(open ? "▾" : "▸", sub ? 14 : 16, Pal.Ink2, true, TextAlignment.End);
+        var arrow = Ui.Text(open ? "▾" : "▸", 16, Pal.Ink2, true, TextAlignment.End);
         arrow.VerticalTextAlignment = TextAlignment.Center;
         var head = new Grid
         {
@@ -47,9 +47,9 @@ public static class Form
         var box = new VerticalStackLayout { Spacing = 0 };
         box.Children.Add(head);
         box.Children.Add(body);
-        var card = Ui.Card(box, sub ? Pal.Paper2 : Pal.Paper);
+        var card = Ui.Card(box, Pal.Paper);
         // по высоте отступ даёт сам заголовок: зона нажатия 48 dp
-        card.Padding = new Thickness(sub ? 10 : 12, 0);
+        card.Padding = new Thickness(12, 0);
         return card;
     }
 

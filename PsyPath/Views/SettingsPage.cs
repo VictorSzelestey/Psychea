@@ -27,28 +27,39 @@ public class SettingsPage : AdminBase
         _ = Install(update);
     }
 
-    // открытые вкладки и подвкладки: экран пересобирается после смены размера текста и напоминания
+    // открытые вкладки: экран пересобирается после смены размера текста и напоминания
     readonly HashSet<string> open = new();
 
-    View Fold(string key, string title, bool sub, params View[] content) =>
+    View Fold(string key, string title, params View[] content) =>
         Form.Fold(title, open.Contains(key), o =>
         {
             if (o) open.Add(key);
             else open.Remove(key);
-        }, sub, content);
+        }, content);
+
+    // раздел внутри вкладки: заголовок и всё содержимое сразу, без сворачивания
+    static View Part(string title, params View[] content)
+    {
+        var box = new VerticalStackLayout { Spacing = 10 };
+        var head = Ui.Text(title, 12, Pal.Ink, true);
+        head.Margin = new Thickness(0, 6, 0, 0);
+        box.Children.Add(head);
+        foreach (var v in content) box.Children.Add(v);
+        return box;
+    }
 
     void Build()
     {
         var s = List();
 
-        var sound = Fold("sound", "ЗВУКИ", true,
+        var sound = Part("ЗВУКИ",
             Form.Choice("ЗВУКИ КНОПОК И ОТВЕТОВ", OnOff, Settings.Sound ? "1" : "0", v =>
             {
                 Settings.Sound = v == "1";
                 Sound.Play("ok");
             }),
             Form.Hint("Щелчок кнопок, сигнал верного и неверного ответа, мелодия в конце урока."));
-        var music = Fold("music", "МУЗЫКА", true,
+        var music = Part("МУЗЫКА",
             Form.Choice("ФОНОВАЯ МУЗЫКА", OnOff, Settings.MusicOn ? "1" : "0", v =>
             {
                 Settings.MusicOn = v == "1";
@@ -62,9 +73,9 @@ public class SettingsPage : AdminBase
             Form.Choice("В ОПРОСНИКАХ", OnOff, Settings.MusicInQuiz ? "1" : "0", v => Settings.MusicInQuiz = v == "1"),
             Form.Choice("В КАРТОЧКАХ", OnOff, Settings.MusicInCards ? "1" : "0", v => Settings.MusicInCards = v == "1"),
             Form.Hint("Музыка звучит по кругу на всех экранах. В опросниках и карточках её можно выключить, чтобы не отвлекала."));
-        s.Children.Add(Fold("audio", "ЗВУК И МУЗЫКА", false, sound, music));
+        s.Children.Add(Fold("audio", "ЗВУК И МУЗЫКА", sound, music));
 
-        var fontSize = Fold("font", "РАЗМЕР ТЕКСТА", true,
+        var fontSize = Part("РАЗМЕР ТЕКСТА",
             Form.Choice("РАЗМЕР", new[] { ("1", "ОБЫЧНЫЙ"), ("1.15", "КРУПНЕЕ"), ("1.3", "КРУПНЫЙ") },
                 Settings.FontScale.ToString(System.Globalization.CultureInfo.InvariantCulture), v =>
                 {
@@ -74,16 +85,16 @@ public class SettingsPage : AdminBase
                     Build();
                 }),
             Ui.Text("Так выглядит текст задания.", 15));
-        var motion = Fold("motion", "АНИМАЦИИ", true,
+        var motion = Part("АНИМАЦИИ",
             Form.Choice("АНИМАЦИИ ЭКРАНОВ", OnOff, Anim.Still ? "0" : "1", v =>
             {
                 Anim.Still = v == "0";
                 Settings.ReduceMotion = Anim.Still;
             }),
             Form.Hint("Без анимаций экраны сменяются сразу, ничего не прыгает и не качается."));
-        s.Children.Add(Fold("ui", "ИНТЕРФЕЙС", false, fontSize, motion));
+        s.Children.Add(Fold("ui", "ИНТЕРФЕЙС", fontSize, motion));
 
-        s.Children.Add(Fold("reminder", "НАПОМИНАНИЕ О СЕРИИ", false,
+        s.Children.Add(Fold("reminder", "НАПОМИНАНИЕ О СЕРИИ",
             Form.Choice("УВЕДОМЛЕНИЕ", OnOff, Settings.Reminders ? "1" : "0", async v =>
             {
                 bool on = v == "1";
@@ -119,9 +130,9 @@ public class SettingsPage : AdminBase
         };
         if (Api.User != null)
             dataItems.Add(Form.Link("УДАЛИТЬ АККАУНТ", Pal.RedInk, async () => await Push(new DeleteAccountPage()), TextAlignment.Center));
-        var data = Fold("data", "ДАННЫЕ", true, dataItems.ToArray());
+        var data = Part("ДАННЫЕ", dataItems.ToArray());
 
-        var logs = new Btn("ОТПРАВИТЬ ЖУРНАЛ", Pal.Paper, Pal.Ink, 15);
+        var logs = new Btn("ОТПРАВИТЬ ЖУРНАЛ", Pal.Paper2, Pal.Ink, 15);
         logs.Clicked += async (_, _) =>
         {
             if (!logs.Enabled) return;
@@ -141,10 +152,10 @@ public class SettingsPage : AdminBase
             }
             finally { logs.Enabled = true; }
         };
-        var diagnostics = Fold("diag", "ДИАГНОСТИКА", true,
+        var diagnostics = Part("ДИАГНОСТИКА",
             Form.Hint("После сбоя снова открой приложение и отправь журнал разработчику. В нём — ошибки и последние открытые экраны."),
             logs);
-        s.Children.Add(Fold("datadiag", "ДАННЫЕ И ДИАГНОСТИКА", false, data, diagnostics));
+        s.Children.Add(Fold("datadiag", "ДАННЫЕ И ДИАГНОСТИКА", data, diagnostics));
 
         s.Children.Add(Form.Section("ОБНОВЛЕНИЯ"));
         s.Children.Add(Form.Choice("АВТООБНОВЛЕНИЕ", OnOff, Settings.AutoUpdate ? "1" : "0", v => Settings.AutoUpdate = v == "1"));
