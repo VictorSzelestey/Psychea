@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PsyPath.Models;
 using PsyPath.Services;
 using PsyPath.UI;
 
@@ -7,7 +8,7 @@ namespace PsyPath.Views;
 public class ProfilePage : DataPage
 {
     readonly Label syncInfo = Ui.Text("", 11, Pal.Ink2, true);
-    Elephant? elephant;
+    Beast? beast;
     bool active;
 
     // "student" → "СТУДЕНТ" и т.п.; ответ из онбординга показывается тут
@@ -26,7 +27,7 @@ public class ProfilePage : DataPage
         active = true;
         Sync.Changed += ShowSync;
         ShowSync();
-        elephant?.Start();
+        beast?.Start();
         _ = RefreshAccount();
     }
 
@@ -52,7 +53,7 @@ public class ProfilePage : DataPage
         base.OnDisappearing();
         active = false;
         Sync.Changed -= ShowSync;
-        elephant?.Stop();
+        beast?.Stop();
     }
 
     // «ВСЁ ОТПРАВЛЕНО» или «ЖДЁТ СЕТИ: 3» — результаты, сделанные без интернета
@@ -90,13 +91,29 @@ public class ProfilePage : DataPage
         var user = Api.User;
         if (user != null)
         {
-            var account = new VerticalStackLayout { Spacing = 2 };
+            var account = new VerticalStackLayout { Spacing = 2, VerticalOptions = LayoutOptions.Center };
             account.Children.Add(Ui.Text(user.DisplayName.ToUpperInvariant(), 16, Pal.Ink, true));
             account.Children.Add(Ui.Text("@" + user.Login + (user.RoleCaption.Length > 0 ? "  //  " + user.RoleCaption : ""), 11, Pal.Ink2, true));
             (syncInfo.Parent as Layout)?.Children.Remove(syncInfo);
             account.Children.Add(syncInfo);
             ShowSync();
-            stack.Children.Add(Ui.Card(account, Pal.Paper2, 12));
+
+            // аватарка видна в топе игроков; сменить — нажатием на неё
+            var avatar = new VerticalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
+            avatar.Children.Add(Avatars.View(p.Avatar, user.DisplayName, 64));
+            avatar.Children.Add(Ui.Text("СМЕНИТЬ", 10, Pal.TealInk, true, TextAlignment.Center));
+            SemanticProperties.SetDescription(avatar, "Сменить аватарку");
+            Ui.OnTap(avatar, async () => await Push(new AvatarPage()));
+
+            var head = new Grid
+            {
+                ColumnSpacing = 12,
+                ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) }
+            };
+            head.Children.Add(avatar);
+            Grid.SetColumn(account, 1);
+            head.Children.Add(account);
+            stack.Children.Add(Ui.Card(head, Pal.Paper2, 12));
 
             if (user.CanEditContent)
             {
@@ -157,13 +174,17 @@ public class ProfilePage : DataPage
         var hist = new VerticalStackLayout { Spacing = 10 };
         hist.Children.Add(Ui.Text("ИСТОРИЯ ОПРОСНИКОВ", 12, Pal.RedInk, true));
 
-        elephant?.Stop();
-        elephant = new Elephant(120);
-        elephant.Start();
-        hist.Children.Add(elephant);
+        beast?.Stop();
+        beast = null;
         var temperament = AppState.LastTemperament();
-        if (temperament is var (temperTitle, temperAbout))
+        if (temperament is var (temperTitle, temperAbout, kind))
         {
+            if (kind is Temper k)
+            {
+                beast = new Beast(k, 120);
+                beast.Start();
+                hist.Children.Add(beast);
+            }
             hist.Children.Add(Ui.Text("ТВОЙ ТЕМПЕРАМЕНТ", 11, Pal.Ink2, true, TextAlignment.Center));
             hist.Children.Add(Ui.Text(temperTitle, 20, Pal.Ink, true, TextAlignment.Center));
             if (temperAbout.Length > 0)

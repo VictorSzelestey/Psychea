@@ -245,6 +245,50 @@ public class DashLink : GraphicsView
     }
 }
 
+// линии «соедини пары»: от правого края левой плашки к левому краю правой, цветом пары.
+// Слой лежит под плашками: от точек на концах видны полукруглые «разъёмы»
+class PairLinesDrawable : IDrawable
+{
+    public List<(PointF From, PointF To, Color Color)> Links { get; } = new();
+
+    public void Draw(ICanvas canvas, RectF rect)
+    {
+        canvas.StrokeSize = 3;
+        canvas.StrokeLineCap = LineCap.Round;
+        foreach (var (a, b, color) in Links)
+        {
+            canvas.StrokeColor = color;
+            canvas.FillColor = color;
+            float bend = (b.X - a.X) / 2;
+            var path = new PathF();
+            path.MoveTo(a);
+            path.CurveTo(a.X + bend, a.Y, b.X - bend, b.Y, b.X, b.Y);
+            canvas.DrawPath(path);
+            canvas.FillCircle(a, 4);
+            canvas.FillCircle(b, 4);
+        }
+    }
+}
+
+public class PairLines : GraphicsView
+{
+    readonly PairLinesDrawable drawable = new();
+
+    public PairLines()
+    {
+        Drawable = drawable;
+        BackgroundColor = Colors.Transparent;
+        InputTransparent = true;
+    }
+
+    public void Set(IEnumerable<(PointF From, PointF To, Color Color)> links)
+    {
+        drawable.Links.Clear();
+        drawable.Links.AddRange(links);
+        Invalidate();
+    }
+}
+
 public abstract class BasePage : ContentPage
 {
     // шире этого контент не растягивается (горизонтальный режим, планшеты)

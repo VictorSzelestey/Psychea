@@ -535,29 +535,76 @@ public class LessonPage : BasePage
         }
         right = right.OrderBy(_ => rnd.Next()).ToList();
 
+        // средняя колонка — место для соединительных линий
         var grid = new Grid
         {
-            ColumnSpacing = 10,
-            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) }
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(new GridLength(28)),
+                new ColumnDefinition(GridLength.Star)
+            }
         };
         var lCol = new VerticalStackLayout { Spacing = 8 };
         var rCol = new VerticalStackLayout { Spacing = 8 };
-        Grid.SetColumn(rCol, 1);
+        Grid.SetColumn(rCol, 2);
+        var lines = new PairLines();
+        Grid.SetColumnSpan(lines, 3);
 
         var lRows = new Border[n];
         var rRows = new Border[n];
         var chosen = new int?[n]; // chosen[leftId] = выбранный rightId, пока не нажали «Проверить»
         int selL = -1, selR = -1;
 
+        // выбранная плашка — сиреневая с тёмной обводкой; пара — две плашки одного цвета и линия между ними.
+        // Цвет пары — по левой плашке, о верности ответа он ничего не говорит
+        static void Paint(Border row, bool selected, int pair)
+        {
+            if (selected)
+            {
+                row.BackgroundColor = Pal.Amber;
+                row.Stroke = new SolidColorBrush(Pal.Violet);
+                row.StrokeThickness = 2;
+            }
+            else if (pair >= 0)
+            {
+                var (fill, line) = Pal.Pair(pair);
+                row.BackgroundColor = fill;
+                row.Stroke = new SolidColorBrush(line);
+                row.StrokeThickness = 2;
+            }
+            else
+            {
+                row.BackgroundColor = Pal.Paper;
+                row.Stroke = new SolidColorBrush(Pal.Line);
+                row.StrokeThickness = 1;
+            }
+        }
+
+        void DrawLines()
+        {
+            var links = new List<(PointF, PointF, Color)>();
+            for (int i = 0; i < n; i++)
+            {
+                if (chosen[i] is not int r) continue;
+                var a = lRows[i].Bounds;
+                var b = rRows[r].Bounds;
+                if (a.Width <= 0 || b.Width <= 0) continue;
+                links.Add((
+                    new PointF((float)(lCol.X + a.Right), (float)(lCol.Y + a.Center.Y)),
+                    new PointF((float)(rCol.X + b.Left), (float)(rCol.Y + b.Center.Y)),
+                    Pal.Pair(i).Line));
+            }
+            lines.Set(links);
+        }
+
         void Refresh()
         {
             for (int i = 0; i < n; i++)
-                lRows[i].BackgroundColor = selL == i ? Pal.Amber : (chosen[i].HasValue ? Pal.Paper2 : Pal.Paper);
+                Paint(lRows[i], selL == i, chosen[i].HasValue ? i : -1);
             for (int i = 0; i < n; i++)
-            {
-                bool paired = Array.IndexOf(chosen, (int?)i) >= 0;
-                rRows[i].BackgroundColor = selR == i ? Pal.Amber : (paired ? Pal.Paper2 : Pal.Paper);
-            }
+                Paint(rRows[i], selR == i, Array.IndexOf(chosen, (int?)i));
+            DrawLines();
             if (!isChecked) actionBtn.Enabled = chosen.All(x => x.HasValue);
         }
 
@@ -610,6 +657,10 @@ public class LessonPage : BasePage
             rCol.Children.Add(row);
         }
 
+        // текст в плашках переносится, высота меняется — линии перерисовываются по новой раскладке
+        lCol.SizeChanged += (s, e) => DrawLines();
+        rCol.SizeChanged += (s, e) => DrawLines();
+        grid.Children.Add(lines);
         grid.Children.Add(lCol);
         grid.Children.Add(rCol);
         body.Children.Add(grid);

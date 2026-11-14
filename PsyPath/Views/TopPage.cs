@@ -61,13 +61,17 @@ public class TopPage : AdminBase
         var top = body.GetProperty("top").EnumerateArray().Take(10).ToList();
         if (top.Count == 0) s.Children.Add(Ui.Text("Пока здесь никого нет.", 13, Pal.Ink2));
         foreach (var row in top)
+        {
+            // старый сервер аватарку не присылает — тогда первая буква имени
+            string? avatar = row.TryGetProperty("avatar", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
             s.Children.Add(Row(row.GetProperty("place").GetInt64(), row.GetProperty("name").GetString() ?? "",
-                row.GetProperty("xp").GetInt32(), row.GetProperty("me").GetBoolean()));
+                row.GetProperty("xp").GetInt32(), row.GetProperty("me").GetBoolean(), avatar));
+        }
 
         Show("ТОП-10 ИГРОКОВ", s, animate: true);
     }
 
-    static View Row(long place, string name, int xp, bool me)
+    static View Row(long place, string name, int xp, bool me, string? avatar)
     {
         var g = new Grid
         {
@@ -75,6 +79,7 @@ public class TopPage : AdminBase
             ColumnDefinitions =
             {
                 new ColumnDefinition(new GridLength(58)),
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Star),
                 new ColumnDefinition(GridLength.Auto)
             }
@@ -86,15 +91,19 @@ public class TopPage : AdminBase
         rank.Children.Add(Ui.Text(place.ToString(), 14, Pal.Ink2, true));
         g.Children.Add(rank);
 
+        var face = Avatars.View(avatar, name, 40);
+        Grid.SetColumn(face, 1);
+        g.Children.Add(face);
+
         var title = Ui.Text(me ? name + " (ты)" : name, 14, Pal.Ink, me);
         title.LineBreakMode = LineBreakMode.TailTruncation;
         title.VerticalTextAlignment = TextAlignment.Center;
-        Grid.SetColumn(title, 1);
+        Grid.SetColumn(title, 2);
         g.Children.Add(title);
 
         var value = Ui.Text($"{xp} XP", 13, Pal.Ink, true, TextAlignment.End);
         value.VerticalTextAlignment = TextAlignment.Center;
-        Grid.SetColumn(value, 2);
+        Grid.SetColumn(value, 3);
         g.Children.Add(value);
 
         return Ui.Card(g, me ? Pal.Amber : Pal.Paper, 12);

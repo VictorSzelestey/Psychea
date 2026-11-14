@@ -9,9 +9,11 @@ public class QuestionnairePage : BasePage
     readonly Questionnaire quiz;
     readonly Random rnd = new();
     readonly List<int> answers = new();
+    // порядок вариантов у каждого вопроса: при возврате назад варианты не перемешиваются заново
+    readonly Dictionary<int, List<int>> orders = new();
     int index;
     bool locked;
-    Elephant? elephant;
+    Beast? beast;
 
     public QuestionnairePage(Questionnaire quiz) : base(true)
     {
@@ -24,7 +26,7 @@ public class QuestionnairePage : BasePage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        elephant?.Stop();
+        beast?.Stop();
     }
 
     static View Wrap(View content)
@@ -54,6 +56,8 @@ public class QuestionnairePage : BasePage
             if (locked) return;
             locked = true;
             go.Enabled = false;
+            // после возврата к описанию прежние ответы остаются выбранными
+            index = 0;
             await ShowQuestion();
         };
         stack.Children.Add(go);
@@ -75,7 +79,8 @@ public class QuestionnairePage : BasePage
         }
         var q = quiz.Questions[index];
         int questionIndex = index;
-        int? selectedValue = null;
+        // вернулись назад — прежний ответ уже выбран, его можно оставить или поменять
+        int? selectedValue = index < answers.Count ? answers[index] : null;
         var choices = new List<(Button Button, int Value, string Text)>();
         CrashLog.Write("Questionnaire", $"id={quiz.Id}; question={index + 1}/{quiz.Questions.Count}");
 
@@ -92,7 +97,7 @@ public class QuestionnairePage : BasePage
         {
             Text = "ДАЛЬШЕ", BackgroundColor = Pal.Violet, TextColor = Pal.Paper,
             FontFamily = "BodyBold", FontSize = 16 * Ui.Scale, CornerRadius = 24,
-            MinimumHeightRequest = 52, Padding = new Thickness(16, 12), IsEnabled = false
+            MinimumHeightRequest = 52, Padding = new Thickness(16, 12), IsEnabled = selectedValue != null
         };
         SemanticProperties.SetHint(next, "Выбери ответ, затем переходи к следующему вопросу");
         next.Clicked += async (s, e) =>
@@ -100,8 +105,38 @@ public class QuestionnairePage : BasePage
             if (locked || index != questionIndex || selectedValue == null) return;
             locked = true;
             next.IsEnabled = false;
-            answers.Add(selectedValue.Value);
+            if (index < answers.Count) answers[index] = selectedValue.Value;
+            else answers.Add(selectedValue.Value);
             index++;
+            await ShowQuestion();
+        };
+
+        // назад — к прошлому вопросу, с первого — к описанию опросника; ответы сохраняются
+        var back = new Button
+        {
+            Text = "◀ НАЗАД", BackgroundColor = Pal.Paper2, TextColor = Pal.Ink,
+            FontFamily = "BodyBold", FontSize = 16 * Ui.Scale, CornerRadius = 24,
+            BorderColor = Pal.Line, BorderWidth = 2,
+            MinimumHeightRequest = 52, Padding = new Thickness(16, 12)
+        };
+        SemanticProperties.SetHint(back, index == 0 ? "Вернуться к описанию опросника" : "Вернуться к прошлому вопросу");
+        back.Clicked += async (s, e) =>
+        {
+            if (locked || index != questionIndex) return;
+            locked = true;
+            // выбранный, но не подтверждённый ответ тоже запоминается
+            if (selectedValue != null)
+            {
+                if (index < answers.Count) answers[index] = selectedValue.Value;
+                else answers.Add(selectedValue.Value);
+            }
+            if (index == 0)
+            {
+                locked = false;
+                ShowIntro();
+                return;
+            }
+            index--;
             await ShowQuestion();
         };
 
@@ -121,17 +156,22 @@ public class QuestionnairePage : BasePage
                 if (locked || index != questionIndex) return;
                 selectedValue = value;
                 Sound.Play("tap");
-                foreach (var choice in choices)
-                {
-                    bool selected = choice.Value == value;
-                    choice.Button.BackgroundColor = selected ? Pal.Amber : Pal.Paper;
-                    choice.Button.BorderColor = selected ? Pal.Violet : Pal.Line;
-                    choice.Button.Text = selected ? "✓ " + choice.Text : choice.Text;
-                    SemanticProperties.SetDescription(choice.Button, choice.Text + (selected ? ", выбран" : ", не выбран"));
-                }
+                Mark();
                 next.IsEnabled = true;
             };
             body.Children.Add(button);
+        }
+
+        void Mark()
+        {
+            foreach (var choice in choices)
+            {
+                bool selected = choice.Value == selectedValue;
+                choice.Button.BackgroundColor = selected ? Pal.Amber : Pal.Paper;
+                choice.Button.BorderColor = selected ? Pal.Violet : Pal.Line;
+                choice.Button.Text = selected ? "✓ " + choice.Text : choice.Text;
+                SemanticProperties.SetDescription(choice.Button, choice.Text + (selected ? ", выбран" : ", не выбран"));
+            }
         }
 
         if (quiz.IsYesNo)
@@ -141,10 +181,12 @@ public class QuestionnairePage : BasePage
         }
         else
         {
-            var order = Enumerable.Range(0, q.Options.Count).OrderBy(_ => rnd.Next()).ToList();
+            if (!orders.TryGetValue(index, out var order))
+                orders[index] = order = Enumerable.Range(0, q.Options.Count).OrderBy(_ => rnd.Next()).ToList();
             foreach (int i in order)
                 AddAnswer(q.Options[i].Text, i);
         }
+        if (selectedValue != null) Mark();
 
         var root = new Grid
         {
@@ -154,7 +196,14 @@ public class QuestionnairePage : BasePage
         var scroll = new ScrollView { Content = body };
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);
-        var footer = new VerticalStackLayout { Padding = new Thickness(18, 8, 18, 24) };
+        var footer = new Grid
+        {
+            ColumnSpacing = 10,
+            Padding = new Thickness(18, 8, 18, 24),
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(new GridLength(1.4, GridUnitType.Star)) }
+        };
+        footer.Children.Add(back);
+        Grid.SetColumn(next, 1);
         footer.Children.Add(next);
         Grid.SetRow(footer, 2);
         root.Children.Add(footer);
@@ -176,11 +225,12 @@ public class QuestionnairePage : BasePage
         card.Children.Add(Ui.Text(quiz.Title.ToUpperInvariant(), 12, Pal.Ink2, true));
         stack.Children.Add(card);
 
-        if (AppState.IsTemperamentQuiz(quiz.Id))
+        // животное своего темперамента; у смешанного итога — по ведущему типу
+        if (AppState.IsTemperamentQuiz(quiz.Id) && AppState.TemperOf(res.Headline) is Temper kind)
         {
-            elephant = new Elephant(150);
-            card.Children.Add(elephant);
-            elephant.Start();
+            beast = new Beast(kind, 150);
+            card.Children.Add(beast);
+            beast.Start();
         }
 
         if (res.Main != null) DominantView(card, stack, res);
@@ -196,7 +246,11 @@ public class QuestionnairePage : BasePage
 
         stack.Children.Add(Form.Link("ПОДЕЛИТЬСЯ РЕЗУЛЬТАТОМ", Pal.TealInk, async () =>
         {
-            if (!await ShareCard.Share(card, "Психея: " + quiz.Title))
+            // на картинке животное в спокойной позе, а не посреди прыжка
+            beast?.Stop();
+            bool shared = await ShareCard.Share(card, "Психея: " + quiz.Title);
+            beast?.Start();
+            if (!shared)
                 await Dlg.Alert(this, "НЕ ВЫШЛО", "Не удалось сделать картинку. Попробуй ещё раз.");
         }, TextAlignment.Center));
 

@@ -388,7 +388,7 @@ public static class AppState
     public static bool IsTemperamentQuiz(string id) => id is "temperament" or "epi";
 
     // последний результат на темперамент; описание берётся из опросника, поэтому есть и у старых записей истории
-    public static (string Title, string About)? LastTemperament()
+    public static (string Title, string About, Temper? Kind)? LastTemperament()
     {
         foreach (var h in P.History.Where(x => IsTemperamentQuiz(x.Id)))
         {
@@ -396,12 +396,23 @@ public static class AppState
             if (q == null) continue;
             string name = h.Headline.Split(" + ")[0];
             var scale = q.Scales.FirstOrDefault(x => x.Name == name);
-            if (scale != null) return (h.Headline, scale.Description);
+            if (scale != null) return (h.Headline, scale.Description, TemperOf(h.Headline));
             var type = q.BlendTexts.Values.Select(x => x.Split('\n', 2)).FirstOrDefault(x => x[0] == name);
-            if (type != null) return (h.Headline, type.Length > 1 ? type[1] : "");
+            if (type != null) return (h.Headline, type.Length > 1 ? type[1] : "", TemperOf(h.Headline));
         }
         return null;
     }
+
+    // «Сангвиник + Холерик» → сангвиник: у смешанного итога животное по ведущему типу
+    public static Temper? TemperOf(string headline) =>
+        headline.Split(" + ")[0].Trim().ToLowerInvariant() switch
+        {
+            "сангвиник" => Temper.Sanguine,
+            "холерик" => Temper.Choleric,
+            "флегматик" => Temper.Phlegmatic,
+            "меланхолик" => Temper.Melancholic,
+            _ => null
+        };
 
     public static void SaveResult(Questionnaire q, QOutcome r)
     {

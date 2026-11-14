@@ -40,4 +40,19 @@ public static class Pal
     static readonly Color[] cycle = { Violet, Orange, Teal, Red, Cyan, Green };
 
     public static Color Cycle(int i) => cycle[i % cycle.Length];
+
+    // «соедини пары»: мягкая заливка двух плашек пары и насыщенный цвет линии и обводки.
+    // Без красного и зелёного (это «неверно» и «верно») и без сиреневого (это выбранная плашка);
+    // тёмный текст на любой заливке — контраст выше 7
+    static readonly (Color Fill, Color Line)[] pairs =
+    {
+        (Color.FromArgb("#D9E4F7"), Color.FromArgb("#3F6FC4")),
+        (Color.FromArgb("#FCE3CC"), Color.FromArgb("#D9761C")),
+        (Color.FromArgb("#D3EEEE"), Color.FromArgb("#2F8C8E")),
+        (Color.FromArgb("#F8D9E6"), Color.FromArgb("#C2457A")),
+        (Color.FromArgb("#F5E9C2"), Color.FromArgb("#B08A1E")),
+        (Color.FromArgb("#EEDFD5"), Color.FromArgb("#8C6448"))
+    };
+
+    public static (Color Fill, Color Line) Pair(int i) => pairs[i % pairs.Length];
 }

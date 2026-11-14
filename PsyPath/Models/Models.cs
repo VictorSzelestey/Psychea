@@ -160,6 +160,8 @@ public class QOutcome
     public string TypeText { get; set; } = "";
 }
 
+public enum Temper { Sanguine, Choleric, Phlegmatic, Melancholic }
+
 public class QHistoryItem
 {
     public string Id { get; set; } = "";
@@ -217,6 +219,8 @@ public class ProgressData
     public bool Onboarded { get; set; }
     public int DailyGoalMin { get; set; } = 10;
     public string Role { get; set; } = "";   // ← вот эта строка новая
+    // аватарка из Avatars.All; пусто — первая буква имени. Сервер берёт её отсюда для топа
+    public string Avatar { get; set; } = "";
     public double Rating { get; set; } = 100;
     public int Answered { get; set; }
     public int Correct { get; set; }

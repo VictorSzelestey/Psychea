@@ -12,6 +12,47 @@ public static class Form
 
     public static View Hint(string text) => Ui.Text(text, 10, Pal.Ink2);
 
+    // раскрывающаяся вкладка: заголовок со стрелкой, под ним содержимое. sub — вложенная, помельче.
+    // Открыта ли она, помнит экран: он пересобирается, например после смены размера текста
+    public static View Fold(string title, bool open, Action<bool> toggled, bool sub, params View[] content)
+    {
+        var body = new VerticalStackLayout { Spacing = 10, IsVisible = open, Padding = new Thickness(0, 2, 0, 6) };
+        foreach (var v in content) body.Children.Add(v);
+
+        var label = Ui.Text(title, sub ? 12 : 13, sub ? Pal.Ink : Pal.RedInk, true);
+        label.VerticalTextAlignment = TextAlignment.Center;
+        var arrow = Ui.Text(open ? "▾" : "▸", sub ? 14 : 16, Pal.Ink2, true, TextAlignment.End);
+        arrow.VerticalTextAlignment = TextAlignment.Center;
+        var head = new Grid
+        {
+            ColumnSpacing = 8,
+            MinimumHeightRequest = 48,
+            BackgroundColor = Colors.Transparent,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
+        };
+        head.Children.Add(label);
+        Grid.SetColumn(arrow, 1);
+        head.Children.Add(arrow);
+
+        void Describe() => SemanticProperties.SetDescription(head, title + (body.IsVisible ? ", развёрнуто" : ", свёрнуто"));
+        Describe();
+        Ui.OnTap(head, () =>
+        {
+            body.IsVisible = !body.IsVisible;
+            arrow.Text = body.IsVisible ? "▾" : "▸";
+            Describe();
+            toggled(body.IsVisible);
+        });
+
+        var box = new VerticalStackLayout { Spacing = 0 };
+        box.Children.Add(head);
+        box.Children.Add(body);
+        var card = Ui.Card(box, sub ? Pal.Paper2 : Pal.Paper);
+        // по высоте отступ даёт сам заголовок: зона нажатия 48 dp
+        card.Padding = new Thickness(sub ? 10 : 12, 0);
+        return card;
+    }
+
     public static View Field(string label, string? value, Action<string> set, bool multiline = false, string? hint = null)
     {
         View input;
