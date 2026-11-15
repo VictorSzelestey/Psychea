@@ -64,6 +64,7 @@ public class AdminPage : AdminBase
         var users = new Btn("ПОЛЬЗОВАТЕЛИ ▶", Pal.Paper2);
         users.Clicked += async (_, _) => await Push(new AdminUsersPage());
         stack.Children.Add(users);
+        stack.Children.Add(CrystalsCard());
         stack.Children.Add(ContentLinks());
 
         var lessons = new VerticalStackLayout { Spacing = 8 };
@@ -94,6 +95,41 @@ public class AdminPage : AdminBase
         }
         stack.Children.Add(Ui.Card(quiz, Pal.Paper, 12));
         return stack;
+    }
+
+    // кристаллы себе: проверить магазин без прохождения уроков. Только у админа
+    View CrystalsCard()
+    {
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text("КРИСТАЛЛЫ АДМИНУ", 12, Pal.RedInk, true));
+        var balance = Ui.Lcd(Crystals.Balance.ToString(), 16, Icons.Crystal, Pal.Teal, Pal.Cyan);
+        balance.HorizontalOptions = LayoutOptions.Center;
+        balance.Padding = new Thickness(18, 8);
+        box.Children.Add(balance);
+
+        var row = new Grid
+        {
+            ColumnSpacing = 8,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) }
+        };
+        int col = 0;
+        foreach (int n in new[] { 100, 1000 })
+        {
+            var give = new Btn($"+{n}", Pal.Violet, Pal.OnAccent, 15);
+            give.Clicked += (_, _) =>
+            {
+                if (Api.User?.IsAdmin != true) return;
+                Crystals.Earn(n);
+                AppState.Save();
+                Sound.Play("ok");
+                ((Label)((HorizontalStackLayout)balance.Content!).Children[1]).Text = Crystals.Balance.ToString();
+            };
+            Grid.SetColumn(give, col++);
+            row.Children.Add(give);
+        }
+        box.Children.Add(row);
+        box.Children.Add(Ui.Text("Начисляются на этот аккаунт и уходят на сервер вместе с прогрессом.", 11, Pal.Ink2));
+        return Ui.Card(box, Pal.Paper, 12);
     }
 
     View ContentLinks()

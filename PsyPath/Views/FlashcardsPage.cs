@@ -33,7 +33,7 @@ public class FlashcardsPage : AdminBase
         s.Children.Add(Ui.Mascot(150, idle: true));
         string next = Practice.NextCardDate() is { } d ? $" Следующие карточки — {d}." : "";
         s.Children.Add(Ui.Box(Ui.Text("На сегодня все карточки повторены." + next, 14), Pal.Paper, 14));
-        var back = new Btn("НАЗАД ◀", Pal.Violet, Pal.Paper);
+        var back = new Btn("НАЗАД ◀", Pal.Violet, Pal.OnAccent);
         back.Clicked += async (o, e) => await Pop();
         s.Children.Add(back);
         Show("КАРТОЧКИ", s);
@@ -66,7 +66,7 @@ public class FlashcardsPage : AdminBase
         var bottom = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(16, 8, 16, 12), BackgroundColor = Pal.Paper };
         if (!flipped)
         {
-            var show = new Btn("ПОКАЗАТЬ", Pal.Violet, Pal.Paper);
+            var show = new Btn("ПОКАЗАТЬ", Pal.Violet, Pal.OnAccent);
             show.Clicked += async (o, ev) =>
             {
                 if (version != cardVersion) return;
@@ -87,10 +87,10 @@ public class FlashcardsPage : AdminBase
                 ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) },
                 RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) }
             };
-            AddRating(buttons, e, version, CardRating.Again, "СНОВА", Pal.RedInk, Pal.Paper, 0, 0);
+            AddRating(buttons, e, version, CardRating.Again, "СНОВА", Pal.RedInk, Pal.OnAccent, 0, 0);
             AddRating(buttons, e, version, CardRating.Hard, "ТРУДНО", Pal.Orange, Pal.Ink, 0, 1);
-            AddRating(buttons, e, version, CardRating.Good, "ХОРОШО", Pal.Violet, Pal.Paper, 1, 0);
-            AddRating(buttons, e, version, CardRating.Easy, "ЛЕГКО", Pal.GreenInk, Pal.Paper, 1, 1);
+            AddRating(buttons, e, version, CardRating.Good, "ХОРОШО", Pal.Violet, Pal.OnAccent, 1, 0);
+            AddRating(buttons, e, version, CardRating.Easy, "ЛЕГКО", Pal.GreenInk, Pal.OnAccent, 1, 1);
             bottom.Children.Add(Ui.Text("Насколько быстро вспомнил?", 12, Pal.Ink2, true, TextAlignment.Center));
             bottom.Children.Add(buttons);
         }
@@ -146,6 +146,8 @@ public class FlashcardsPage : AdminBase
         if (xp > 0) AppState.AddXp(xp);
         AppState.RegisterActivity();
         AppState.CheckAchievements();
+        Daily.Count(cards: total);
+        var tasks = Daily.Collect();
         AppState.Save();
         Sound.Play("win");
 
@@ -157,10 +159,16 @@ public class FlashcardsPage : AdminBase
         stats.Children.Add(Ui.Text($"+{xp} XP", 20, Pal.Ink, true, TextAlignment.Center));
         s.Children.Add(Ui.Box(stats, Pal.Amber, 14));
         s.Children.Add(Ui.Text("Лёгкие карточки вернутся нескоро, трудные — раньше.", 12, Pal.Ink2));
+        if (tasks.Count > 0) s.Children.Add(Ui.Bullets("ЗАДАНИЯ ДНЯ ВЫПОЛНЕНЫ ✓", tasks));
 
-        var back = new Btn("ПРОДОЛЖИТЬ ▶", Pal.GreenInk, Pal.Paper);
+        var back = new Btn("ПРОДОЛЖИТЬ ▶", Pal.GreenInk, Pal.OnAccent);
         back.Clicked += async (o, e) => await Pop();
         s.Children.Add(back);
         Show("КАРТОЧКИ", s);
+
+        int saved = Streak.TakeFreezeNotice();
+        if (saved > 0) _ = Dlg.Alert(this, "СЕРИЯ СПАСЕНА", $"Заморозка закрыла пропущенные дни: {saved}. Серия продолжается — {AppState.P.Streak} дн.");
+        int days = Streak.TakeCelebration();
+        if (days > 0) StreakBurst.Show(Root, days);
     }
 }

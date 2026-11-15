@@ -13,15 +13,13 @@ public static class Updater
     // version.json и APK меняются только при релизе в main
     const string LatestUrl = "https://raw.githubusercontent.com/VictorSzelestey/Psychea/main/releases/version.json";
     const string ApkType = "application/vnd.android.package-archive";
-    const int BufferSize = 81920;
 
     static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(10);
-    static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(5);
     static readonly HttpClient Http = CreateClient();
 
     static HttpClient CreateClient()
     {
-        // сроки задаются для каждого запроса отдельно: скачивание идёт намного дольше проверки
+        // срок задаётся для каждого запроса отдельно
         var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         // без User-Agent GitHub отклоняет запрос
         client.DefaultRequestHeaders.UserAgent.ParseAdd("PsyPath-App");
@@ -83,38 +81,106 @@ public static class Updater
         }
     }
 
-    // скачивает APK и открывает системный установщик; возвращает текст ошибки или null
+    // идущая или скачанная, но ещё не установленная загрузка переживает сворачивание и перезапуск приложения
+    const string DownloadIdKey = "update_download_id";
+    const string DownloadVersionKey = "update_download_version";
+    // установщик после возвращения в приложение открывается один раз; дальше — кнопкой «Обновить» в настройках
+    const string OfferedKey = "update_download_offered";
+
+    // приложение свёрнуто: Android не даст открыть установщик из фона, его откроет Resume
+    public static bool InBackground { get; set; }
+
+    // APK ещё качается (не скачан и не сорвался)
+    public static bool Downloading
+    {
+        get
+        {
+#if ANDROID
+            long id = Preferences.Default.Get(DownloadIdKey, -1L);
+            return id >= 0 && Droid.ApkDownload.Query(id).State is Droid.ApkDownload.State.Running or Droid.ApkDownload.State.Waiting;
+#else
+            return false;
+#endif
+        }
+    }
+
+    // скачивает APK системным загрузчиком и открывает установщик; возвращает текст ошибки или null.
+    // Приложение можно свернуть: загрузка идёт дальше, прогресс — в шторке
     public static async Task<string?> DownloadAndInstall(AppUpdate update, Action<int> progress)
     {
-        string path = Path.Combine(FileSystem.CacheDirectory, "update.apk");
-        try
+#if ANDROID
+        long id = Preferences.Default.Get(DownloadIdKey, -1L);
+        // та же версия уже качается — следим за ней, а не начинаем заново
+        if (id < 0 || Preferences.Default.Get(DownloadVersionKey, "") != update.Version.ToString())
         {
-            using var timeout = new CancellationTokenSource(DownloadTimeout);
-            using var resp = await Http.GetAsync(update.ApkUrl, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-            if (!resp.IsSuccessStatusCode) return "Не удалось скачать обновление";
+            if (id >= 0) Droid.ApkDownload.Cancel(id);
+            try { id = Droid.ApkDownload.Start(update.ApkUrl, $"Психея {update.Version}"); }
+            catch (Exception) { return "Не удалось начать скачивание"; }
+            Preferences.Default.Set(DownloadIdKey, id);
+            Preferences.Default.Set(DownloadVersionKey, update.Version.ToString());
+            Preferences.Default.Remove(OfferedKey);
+        }
 
-            long total = resp.Content.Headers.ContentLength ?? 0;
-            await using (var source = await resp.Content.ReadAsStreamAsync(timeout.Token))
-            await using (var file = File.Create(path))
+        while (true)
+        {
+            var (state, percent) = Droid.ApkDownload.Query(id);
+            if (state == Droid.ApkDownload.State.Failed)
             {
-                var buffer = new byte[BufferSize];
-                long done = 0;
-                int read;
-                while ((read = await source.ReadAsync(buffer, timeout.Token)) > 0)
-                {
-                    await file.WriteAsync(buffer.AsMemory(0, read), timeout.Token);
-                    done += read;
-                    if (total > 0) progress((int)(done * 100 / total));
-                }
+                Forget();
+                return "Не удалось скачать обновление";
             }
+            if (state == Droid.ApkDownload.State.Done)
+                return InBackground ? null : await OpenInstaller();
+            progress(percent);
+            await Task.Delay(500);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException)
-        {
-            return "Не удалось скачать обновление";
-        }
+#else
+        await Task.CompletedTask;
+        return "Обновление из APK ставится только на Android";
+#endif
+    }
 
+    // вернулись в приложение, а APK докачался, пока оно было свёрнуто или закрыто
+    public static async Task Resume()
+    {
+#if ANDROID
+        long id = Preferences.Default.Get(DownloadIdKey, -1L);
+        if (id < 0) return;
+        // уже стоит эта версия или новее — скачанный файл не нужен
+        if (!Version.TryParse(Preferences.Default.Get(DownloadVersionKey, ""), out var v) || Normalize(v) <= Normalize(AppInfo.Current.Version))
+        {
+            Droid.ApkDownload.Cancel(id);
+            Forget();
+            return;
+        }
+        var (state, _) = Droid.ApkDownload.Query(id);
+        if (state == Droid.ApkDownload.State.Done && !Preferences.Default.Get(OfferedKey, false))
+        {
+            Preferences.Default.Set(OfferedKey, true);
+            await OpenInstaller();
+        }
+        else if (state == Droid.ApkDownload.State.Failed) Forget();
+#else
+        await Task.CompletedTask;
+#endif
+    }
+
+    static void Forget()
+    {
+        Preferences.Default.Remove(DownloadIdKey);
+        Preferences.Default.Remove(DownloadVersionKey);
+        Preferences.Default.Remove(OfferedKey);
+    }
+
+#if ANDROID
+    // установщику файл отдаётся из кэша: так MAUI открывает его через свой FileProvider.
+    // Отметка о загрузке остаётся: если установку отменили, Resume предложит её снова
+    static async Task<string?> OpenInstaller()
+    {
         try
         {
+            string path = Path.Combine(FileSystem.CacheDirectory, "update.apk");
+            File.Copy(Droid.ApkDownload.FilePath, path, true);
             await Launcher.Default.OpenAsync(new OpenFileRequest("Обновление Психеи", new ReadOnlyFile(path, ApkType)));
             return null;
         }
@@ -123,4 +189,5 @@ public static class Updater
             return "Не удалось открыть установщик";
         }
     }
+#endif
 }

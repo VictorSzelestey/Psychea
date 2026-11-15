@@ -231,6 +231,31 @@ public class ProgressData
     public string XpDate { get; set; } = "";
     public int Streak { get; set; }
     public string LastActive { get; set; } = "";
+    // день, когда показали заставку рубежа серии: второй урок в тот же день её не повторит
+    public string StreakCelebrated { get; set; } = "";
+
+    // кристаллы — валюта магазина, отдельно от XP: покупка не трогает уровень и рейтинг
+    public int Crystals { get; set; }
+    // стартовые кристаллы за XP, набранный до появления магазина, выдаются один раз
+    public bool CrystalsStarted { get; set; }
+    // купленные аватарки и темы (id из Avatars.All и Themes.All)
+    public List<string> Owned { get; set; } = new();
+    public string Theme { get; set; } = "";
+    // рамка аватарки и наряд манула из магазина; пусто — без них
+    public string Frame { get; set; } = "";
+    public string Outfit { get; set; } = "";
+    // заморозки серии: каждая закрывает один пропущенный день
+    public int Freezes { get; set; }
+    // сколько заморозок потратила последняя пропущенная пауза; главная показывает это один раз
+    public int FreezesJustUsed { get; set; }
+
+    // задания дня: счётчики сегодняшних занятий и выполненные задания. Новый день — всё с нуля
+    public string DailyDate { get; set; } = "";
+    public int DailyLessons { get; set; }
+    public int DailyPerfect { get; set; }
+    public int DailyCards { get; set; }
+    public int DailyQuizzes { get; set; }
+    public List<string> DailyDone { get; set; } = new();
 
     public List<string> Done { get; set; } = new();
     public List<string> Achievements { get; set; } = new();

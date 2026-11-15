@@ -30,7 +30,7 @@ public class TopPage : AdminBase
     {
         var s = List();
         s.Children.Add(Ui.Text(error, 13, Pal.RedInk, true));
-        var again = new Btn("ПОВТОРИТЬ", Pal.Violet, Pal.Paper);
+        var again = new Btn("ПОВТОРИТЬ", Pal.Violet, Pal.OnAccent);
         again.Clicked += async (o, e) => await Load();
         s.Children.Add(again);
         Show("ТОП-10 ИГРОКОВ", s);
@@ -64,14 +64,16 @@ public class TopPage : AdminBase
         {
             // старый сервер аватарку не присылает — тогда первая буква имени
             string? avatar = row.TryGetProperty("avatar", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
+            // рамку присылает сервер с 1.6.4; старый — без неё
+            string? frame = row.TryGetProperty("frame", out var f) && f.ValueKind == JsonValueKind.String ? f.GetString() : null;
             s.Children.Add(Row(row.GetProperty("place").GetInt64(), row.GetProperty("name").GetString() ?? "",
-                row.GetProperty("xp").GetInt32(), row.GetProperty("me").GetBoolean(), avatar));
+                row.GetProperty("xp").GetInt32(), row.GetProperty("me").GetBoolean(), avatar, frame));
         }
 
         Show("ТОП-10 ИГРОКОВ", s, animate: true);
     }
 
-    static View Row(long place, string name, int xp, bool me, string? avatar)
+    static View Row(long place, string name, int xp, bool me, string? avatar, string? frame)
     {
         var g = new Grid
         {
@@ -91,7 +93,7 @@ public class TopPage : AdminBase
         rank.Children.Add(Ui.Text(place.ToString(), 14, Pal.Ink2, true));
         g.Children.Add(rank);
 
-        var face = Avatars.View(avatar, name, 40);
+        var face = Avatars.View(avatar, name, 40, frame);
         Grid.SetColumn(face, 1);
         g.Children.Add(face);
 

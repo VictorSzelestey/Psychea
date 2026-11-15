@@ -131,7 +131,8 @@ public static class MeEndpoints
     }
 
     // топ-10 по XP и своё место; админы, заблокированные, скрывшие себя и новички с 0 XP не участвуют.
-    // Аватарка — поле Avatar из прогресса, который приложение присылает целиком; миграция базы не нужна
+    // Аватарка — поле Avatar из прогресса, который приложение присылает целиком; миграция базы не нужна.
+    // Рамка аватарки (1.6.4) — поле Frame оттуда же
     static async Task<IResult> Top(ClaimsPrincipal me, NpgsqlDataSource db)
     {
         long id = me.UserId();
@@ -146,11 +147,12 @@ public static class MeEndpoints
         await using var list = db.CreateCommand("""
             with ranked as (
                 select u.id, u.display_name, p.total_xp, coalesce(p.data->>'Avatar', '') as avatar,
+                       coalesce(p.data->>'Frame', '') as frame,
                        row_number() over (order by p.total_xp desc, u.id) as place
                 from psypath.users u join psypath.progress p on p.user_id = u.id
                 where u.role = 'user' and not u.is_blocked and not u.hide_in_top and p.total_xp > 0
             )
-            select id, display_name, total_xp, place, avatar from ranked
+            select id, display_name, total_xp, place, avatar, frame from ranked
             where place <= 10 or id = $1
             order by place
             """);
@@ -164,7 +166,7 @@ public static class MeEndpoints
             bool isMe = r.GetInt64(0) == id;
             long p = r.GetInt64(3);
             if (isMe) place = p;
-            if (p <= 10) top.Add(new { place = p, name = r.GetString(1), xp = r.GetInt32(2), me = isMe, avatar = r.GetString(4) });
+            if (p <= 10) top.Add(new { place = p, name = r.GetString(1), xp = r.GetInt32(2), me = isMe, avatar = r.GetString(4), frame = r.GetString(5) });
         }
         return Results.Ok(new { top, place, hidden });
     }

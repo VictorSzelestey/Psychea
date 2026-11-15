@@ -21,6 +21,9 @@ public class SettingsPage : AdminBase
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // экран открыли заново, а APK ещё качается в фоне
+        if (pending == null && !updating && Updater.Downloading)
+            ShowUpdate("Обновление скачивается, прогресс — в шторке. Установщик откроется сам", Pal.Ink2);
         if (pending == null) return;
         var update = pending;
         pending = null;
@@ -165,7 +168,7 @@ public class SettingsPage : AdminBase
         news.Clicked += async (_, _) => await Push(new ReleaseNotesPage());
         s.Children.Add(news);
 
-        var check = new Btn("ПРОВЕРИТЬ ОБНОВЛЕНИЯ", Pal.Violet, Pal.Paper, 15);
+        var check = new Btn("ПРОВЕРИТЬ ОБНОВЛЕНИЯ", Pal.Violet, Pal.OnAccent, 15);
         check.Clicked += async (o, e) => await CheckUpdates();
         s.Children.Add(check);
         // подпись одна на все пересборки экрана: на неё пишет идущая проверка

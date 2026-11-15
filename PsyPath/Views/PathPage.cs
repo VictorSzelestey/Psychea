@@ -95,6 +95,7 @@ public class PathPage : DataPage
         }
 
         path.Children.Add(HeroCard(current));
+        path.Children.Add(DailyCard());
         var review = ReviewCard();
         if (review != null) path.Children.Add(review);
 
@@ -210,12 +211,12 @@ public class PathPage : DataPage
             LessonState.Open => Pal.Paper2,
             _ => Pal.Gray
         };
-        Color text = state is LessonState.Current or LessonState.Mastered ? Pal.Paper : Pal.Ink;
+        Color text = state is LessonState.Current or LessonState.Mastered ? Pal.OnAccent : Pal.Ink;
 
         View mark;
         if (isLocked)
         {
-            mark = new PixelIcon(Icons.Lock, Pal.Paper, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
+            mark = new PixelIcon(Icons.Lock, Pal.OnAccent, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
         }
         else
         {
@@ -279,13 +280,15 @@ public class PathPage : DataPage
         int goal = AppState.DailyGoalXp;
         int today = AppState.TodayXp;
 
+        // три счётчика и две кнопки помещаются в 360 dp: отступы и промежутки уже, чем на других экранах
         var g = new Grid
         {
-            ColumnSpacing = 8,
-            Padding = new Thickness(18, 12, 18, 0),
+            ColumnSpacing = 6,
+            Padding = new Thickness(12, 12, 12, 0),
             ColumnDefinitions =
             {
                 new ColumnDefinition(new GridLength(52)),
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Star),
@@ -297,8 +300,8 @@ public class PathPage : DataPage
         Border avatar;
         if (Avatars.Exists(AppState.P.Avatar))
         {
-            avatar = Avatars.View(AppState.P.Avatar, Api.User?.DisplayName ?? "", 52);
-            avatar.StrokeThickness = 2;
+            avatar = Avatars.View(AppState.P.Avatar, Api.User?.DisplayName ?? "", 52, AppState.P.Frame);
+            if (Cosmetics.FindFrame(AppState.P.Frame) == null) avatar.StrokeThickness = 2;
         }
         else
             avatar = new Border
@@ -317,20 +320,32 @@ public class PathPage : DataPage
         Ui.OnTap(avatar, async () => await Push(new AvatarPage()));
         g.Children.Add(avatar);
 
-        var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 16, Icons.Flame, Pal.Orange, Pal.Yellow);
-        streak.Padding = new Thickness(16, 10);
+        // огонёк меняет цвет на рубежах серии: 10, 30, 50, 100 дней
+        var (flame, flameAccent) = StreakBurst.FlameColors(AppState.DisplayStreak);
+        var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 15, Icons.Flame, flame, flameAccent);
+        streak.Padding = new Thickness(8, 10);
         streak.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(streak, 1);
         g.Children.Add(streak);
 
-        var xp = Ui.Lcd(AppState.P.TotalXp.ToString(), 16, Icons.Brain, Pal.Violet, Pal.Amber);
-        xp.Padding = new Thickness(16, 10);
+        var xp = Ui.Lcd(Short(AppState.P.TotalXp), 15, Icons.Brain, Pal.Violet, Pal.Amber);
+        xp.Padding = new Thickness(8, 10);
         xp.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(xp, 2);
         g.Children.Add(xp);
 
+        // кристаллы: нажатие открывает магазин
+        var crystals = Ui.Lcd(Short(AppState.P.Crystals), 15, Icons.Crystal, Pal.Teal, Pal.Cyan);
+        crystals.Padding = new Thickness(8, 10);
+        crystals.VerticalOptions = LayoutOptions.Center;
+        AutomationProperties.SetIsInAccessibleTree(crystals, true);
+        SemanticProperties.SetDescription(crystals, $"Кристаллы: {AppState.P.Crystals}. Нажми, чтобы открыть магазин");
+        Ui.OnTap(crystals, async () => await Push(new ShopPage()));
+        Grid.SetColumn(crystals, 3);
+        g.Children.Add(crystals);
+
         var gear = IconButton(Icons.Gear, "Настройки", async () => await Push(new SettingsPage()));
-        Grid.SetColumn(gear, 4);
+        Grid.SetColumn(gear, 5);
         g.Children.Add(gear);
 
         var box = new VerticalStackLayout { Spacing = 4 };
@@ -346,6 +361,44 @@ public class PathPage : DataPage
         goalRow.Children.Add(new Bar(Pal.Orange) { Value = goal == 0 ? 0 : (double)today / goal });
         box.Children.Add(goalRow);
         return box;
+    }
+
+    // задания дня: прогресс и награда; выполненные — с галочкой и зачёркнутой наградой
+    static View DailyCard()
+    {
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text("ЗАДАНИЯ ДНЯ", 12, Pal.RedInk, true));
+        foreach (var t in Daily.Today())
+        {
+            bool done = Daily.IsDone(t);
+            int have = Daily.ProgressOf(t);
+            var row = new Grid
+            {
+                ColumnSpacing = 8,
+                ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
+            };
+            var left = new VerticalStackLayout { Spacing = 3 };
+            left.Children.Add(Ui.Text((done ? "✓ " : "") + t.Title, 13, done ? Pal.GreenInk : Pal.Ink, true));
+            if (!done) left.Children.Add(new Bar(Pal.Teal) { Value = (double)have / t.Goal });
+            row.Children.Add(left);
+            var prize = new HorizontalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
+            prize.Children.Add(new PixelIcon(Icons.Crystal, Pal.Teal, 14, Pal.Cyan));
+            prize.Children.Add(Ui.Text(done ? "ПОЛУЧЕНО" : $"{have}/{t.Goal}  +{t.Reward}", 12, done ? Pal.Ink2 : Pal.Ink, true));
+            Grid.SetColumn(prize, 1);
+            row.Children.Add(prize);
+            SemanticProperties.SetDescription(row, done ? $"{t.Title}: выполнено" : $"{t.Title}: {have} из {t.Goal}, награда {t.Reward} {Crystals.Word(t.Reward)}");
+            box.Children.Add(row);
+        }
+        return Ui.Card(box, Pal.Paper, 14);
+    }
+
+    // 12345 → 12K: пять цифр в верхней панели уже не помещаются рядом с тремя счётчиками,
+    // а при крупном тексте сокращаются уже четыре: 1840 → 1.8K
+    static string Short(int n)
+    {
+        int limit = Ui.Scale > 1 ? 1000 : 10000;
+        if (n < limit) return n.ToString();
+        return n < 10000 ? (n / 1000.0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "K" : $"{n / 1000}K";
     }
 
     // круглая кнопка-иконка: зона нажатия 48×48 dp, name — для экранного диктора
@@ -377,13 +430,14 @@ public class PathPage : DataPage
         if (current != null)
         {
             var lesson = current;
-            var go = new Btn("▶  Начать урок", Pal.Violet, Pal.Paper, 15);
+            var go = new Btn("▶  Начать урок", Pal.Violet, Pal.OnAccent, 15);
             go.Clicked += async (s, e) => await Push(new LessonPage(lesson));
             text.Children.Add(go);
         }
 
         var g = new Grid();
-        var cat = Ui.Mood("love", CatHeight);
+        // в наряде из магазина — манул в нём, иначе влюблённый манул
+        var cat = AppState.P.Outfit.Length > 0 ? Ui.Mascot(CatHeight) : Ui.Mood("love", CatHeight);
         cat.WidthRequest = CatHeight * 900 / 811;
         cat.HorizontalOptions = LayoutOptions.End;
         cat.VerticalOptions = LayoutOptions.End;

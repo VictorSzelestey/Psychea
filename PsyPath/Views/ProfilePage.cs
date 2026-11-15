@@ -100,7 +100,7 @@ public class ProfilePage : DataPage
 
             // аватарка видна в топе игроков; сменить — нажатием на неё
             var avatar = new VerticalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
-            avatar.Children.Add(Avatars.View(p.Avatar, user.DisplayName, 64));
+            avatar.Children.Add(Avatars.View(p.Avatar, user.DisplayName, 64, p.Frame));
             avatar.Children.Add(Ui.Text("СМЕНИТЬ", 10, Pal.TealInk, true, TextAlignment.Center));
             SemanticProperties.SetDescription(avatar, "Сменить аватарку");
             Ui.OnTap(avatar, async () => await Push(new AvatarPage()));
@@ -117,7 +117,7 @@ public class ProfilePage : DataPage
 
             if (user.CanEditContent)
             {
-                var admin = new Btn(user.IsAdmin ? "АДМИН-ПАНЕЛЬ ▶" : "УПРАВЛЕНИЕ КОНТЕНТОМ ▶", Pal.TealInk, Pal.Paper);
+                var admin = new Btn(user.IsAdmin ? "АДМИН-ПАНЕЛЬ ▶" : "УПРАВЛЕНИЕ КОНТЕНТОМ ▶", Pal.TealInk, Pal.OnAccent);
                 admin.Clicked += async (s, e) => await Push(new AdminPage());
                 stack.Children.Add(admin);
             }
@@ -142,27 +142,38 @@ public class ProfilePage : DataPage
             ColumnSpacing = 8,
             RowSpacing = 8,
             ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) },
-            RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) }
+            RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) }
         };
-        void AddStat(string text, string[] icon, int row, int col)
+        View AddStat(string text, string[] icon, int row, int col, Color? color = null, Color? accent = null)
         {
-            var lcd = Ui.Lcd(text, 14, icon);
+            var lcd = Ui.Lcd(text, 14, icon, color, accent);
             Grid.SetRow(lcd, row);
             Grid.SetColumn(lcd, col);
             stats.Children.Add(lcd);
+            return lcd;
         }
         AddStat($"{p.TotalXp} XP", Icons.Bolt, 0, 0);
-        AddStat($"{AppState.DisplayStreak} ДН.", Icons.Flame, 0, 1);
+        var (flame, flameAccent) = StreakBurst.FlameColors(AppState.DisplayStreak);
+        AddStat($"{AppState.DisplayStreak} ДН.", Icons.Flame, 0, 1, flame, flameAccent);
         int acc = p.Answered == 0 ? 0 : (int)Math.Round(p.Correct * 100.0 / p.Answered);
         AddStat($"{acc}%", Icons.Target, 1, 0);
         AddStat($"{p.History.Count} ОПР.", Icons.Tape, 1, 1);
+        var crystals = AddStat($"{p.Crystals}", Icons.Crystal, 2, 0, Pal.Teal, Pal.Cyan);
+        SemanticProperties.SetDescription(crystals, $"Кристаллы: {p.Crystals}");
+        var shop = new Btn("МАГАЗИН ▶", Pal.Violet, Pal.OnAccent, 14);
+        shop.Clicked += async (s, e) => await Push(new ShopPage());
+        Grid.SetRow(shop, 2);
+        Grid.SetColumn(shop, 1);
+        stats.Children.Add(shop);
         stack.Children.Add(stats);
+        if (p.Freezes > 0)
+            stack.Children.Add(Ui.Text($"ЗАМОРОЗОК СЕРИИ: {p.Freezes} ИЗ {Streak.MaxFreezes} — пропущенный день не сожжёт серию", 11, Pal.Ink2, true));
 
         stack.Children.Add(Ui.Text($"ЦЕЛЬ ДНЯ: {p.DailyGoalMin} МИН (≈{AppState.DailyGoalXp} XP)", 12, Pal.Ink2, true));
 
         if (user != null)
         {
-            var topBtn = new Btn("ТОП ИГРОКОВ ▶", Pal.Violet, Pal.Paper, 15);
+            var topBtn = new Btn("ТОП ИГРОКОВ ▶", Pal.Violet, Pal.OnAccent, 15);
             topBtn.Clicked += async (s, e) => await Push(new TopPage());
             stack.Children.Add(topBtn);
         }
@@ -179,16 +190,29 @@ public class ProfilePage : DataPage
         var temperament = AppState.LastTemperament();
         if (temperament is var (temperTitle, temperAbout, kind))
         {
+            // карточка темперамента целиком уходит картинкой в «Поделиться»
+            var temperCard = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(0, 6), BackgroundColor = Pal.Paper };
             if (kind is Temper k)
             {
                 beast = new Beast(k, 120);
                 beast.Start();
-                hist.Children.Add(beast);
+                temperCard.Children.Add(beast);
             }
-            hist.Children.Add(Ui.Text("ТВОЙ ТЕМПЕРАМЕНТ", 11, Pal.Ink2, true, TextAlignment.Center));
-            hist.Children.Add(Ui.Text(temperTitle, 20, Pal.Ink, true, TextAlignment.Center));
+            temperCard.Children.Add(Ui.Text("ТВОЙ ТЕМПЕРАМЕНТ", 11, Pal.Ink2, true, TextAlignment.Center));
+            temperCard.Children.Add(Ui.Text(temperTitle, 20, Pal.Ink, true, TextAlignment.Center));
             if (temperAbout.Length > 0)
-                hist.Children.Add(Ui.Text(temperAbout, 13, Pal.Ink, false, TextAlignment.Center));
+                temperCard.Children.Add(Ui.Text(temperAbout, 13, Pal.Ink, false, TextAlignment.Center));
+            temperCard.Children.Add(Ui.Text("ПСИХЕЯ // ТРЕНАЖЁР ПСИХОЛОГА", 10, Pal.Ink2, true, TextAlignment.Center));
+            hist.Children.Add(temperCard);
+            hist.Children.Add(Form.Link("ПОДЕЛИТЬСЯ ТЕМПЕРАМЕНТОМ", Pal.TealInk, async () =>
+            {
+                // на картинке — спокойная поза животного, после отправки анимация продолжается
+                beast?.Stop();
+                bool shared = await ShareCard.Share(temperCard, "Психея: мой темперамент — " + temperTitle);
+                beast?.Start();
+                if (!shared)
+                    await Dlg.Alert(this, "НЕ ВЫШЛО", "Не удалось сделать картинку. Попробуй ещё раз.");
+            }, TextAlignment.Center));
         }
         else
             hist.Children.Add(Ui.Text("Темперамент пока неизвестен. Пройди опросник «Темперамент» или EPI.", 12, Pal.Ink2, false, TextAlignment.Center));

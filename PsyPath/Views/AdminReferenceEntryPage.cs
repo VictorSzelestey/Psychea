@@ -24,7 +24,7 @@ public class AdminReferenceEntryPage : AdminBase
         list.Children.Add(Form.Field("СТАТЬЯ", entry.Text, text => entry.Text = text, multiline: true));
         var status = Ui.Text("", 14, Pal.RedInk);
         list.Children.Add(status);
-        var submit = new Btn("СОХРАНИТЬ СТАТЬЮ", Pal.Violet, Pal.Paper) { MinimumHeightRequest = 48 };
+        var submit = new Btn("СОХРАНИТЬ СТАТЬЮ", Pal.Violet, Pal.OnAccent) { MinimumHeightRequest = 48 };
         submit.Clicked += async (_, _) =>
         {
             if (busy) return;

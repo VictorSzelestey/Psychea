@@ -60,7 +60,8 @@ public static class Ui
     {
         var img = new Image
         {
-            Source = "snowcat.png",
+            // наряд из магазина, если надет
+            Source = Cosmetics.MascotImage,
             HeightRequest = height,
             // ширина известна заранее (картинка 900×811), раскладка не сдвигается после загрузки
             WidthRequest = height * 900 / 811,

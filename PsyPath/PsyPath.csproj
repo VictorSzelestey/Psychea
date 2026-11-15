@@ -15,8 +15,8 @@
 
     <ApplicationTitle>Психея</ApplicationTitle>
     <ApplicationId>com.psypath.app</ApplicationId>
-    <ApplicationDisplayVersion>1.6.1</ApplicationDisplayVersion>
-    <ApplicationVersion>14</ApplicationVersion>
+    <ApplicationDisplayVersion>1.6.4</ApplicationDisplayVersion>
+    <ApplicationVersion>17</ApplicationVersion>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>

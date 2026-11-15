@@ -50,7 +50,7 @@ public class QuestionnairePage : BasePage
         if (!string.IsNullOrEmpty(quiz.Source))
             stack.Children.Add(Ui.Text("Источник: " + quiz.Source, 11, Pal.Ink2));
 
-        var go = new Btn("НАЧАТЬ ▶", Pal.Violet, Pal.Paper);
+        var go = new Btn("НАЧАТЬ ▶", Pal.Violet, Pal.OnAccent);
         go.Clicked += async (s, e) =>
         {
             if (locked) return;
@@ -95,7 +95,7 @@ public class QuestionnairePage : BasePage
 
         var next = new Button
         {
-            Text = "ДАЛЬШЕ", BackgroundColor = Pal.Violet, TextColor = Pal.Paper,
+            Text = "ДАЛЬШЕ", BackgroundColor = Pal.Violet, TextColor = Pal.OnAccent,
             FontFamily = "BodyBold", FontSize = 16 * Ui.Scale, CornerRadius = 24,
             MinimumHeightRequest = 52, Padding = new Thickness(16, 12), IsEnabled = selectedValue != null
         };
@@ -240,7 +240,7 @@ public class QuestionnairePage : BasePage
         if (!string.IsNullOrEmpty(quiz.Disclaimer))
             stack.Children.Add(Ui.Text(quiz.Disclaimer, 11, Pal.Ink2));
 
-        var done = new Btn("ГОТОВО", Pal.Violet, Pal.Paper);
+        var done = new Btn("ГОТОВО", Pal.Violet, Pal.OnAccent);
         done.Clicked += async (s, e) => await Pop();
         stack.Children.Add(done);
 
@@ -255,6 +255,11 @@ public class QuestionnairePage : BasePage
         }, TextAlignment.Center));
 
         await SwapBody(Wrap(new ScrollView { Content = stack }));
+
+        int saved = Streak.TakeFreezeNotice();
+        if (saved > 0) await Dlg.Alert(this, "СЕРИЯ СПАСЕНА", $"Заморозка закрыла пропущенные дни: {saved}. Серия продолжается — {AppState.P.Streak} дн.");
+        int days = Streak.TakeCelebration();
+        if (days > 0) StreakBurst.Show(Root, days);
     }
 
     // в карточку для картинки — вывод и шкалы, подробности — ниже на экране

@@ -15,7 +15,7 @@ public class TheoryPage : AdminBase
             list.Children.Add(LessonPage.TheoryCardView(card));
 
         var bottom = new VerticalStackLayout { Padding = new Thickness(16, 8, 16, 16), BackgroundColor = Pal.Paper };
-        var back = new Btn("◀ К ЗАДАНИЮ", Pal.Violet, Pal.Paper);
+        var back = new Btn("◀ К ЗАДАНИЮ", Pal.Violet, Pal.OnAccent);
         back.Clicked += async (s, e) => await Pop();
         bottom.Children.Add(back);
 

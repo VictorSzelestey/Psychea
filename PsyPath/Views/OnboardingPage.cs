@@ -88,7 +88,7 @@ public class OnboardingPage : BasePage
 
         var bottom = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(20, 8, 20, 24) };
         bottom.Children.Add(Dots());
-        var next = new Btn("ДАЛЕЕ ▶", Pal.Violet, Pal.Paper);
+        var next = new Btn("ДАЛЕЕ ▶", Pal.Violet, Pal.OnAccent);
         next.Clicked += async (s, e) =>
         {
             if (busy) return;

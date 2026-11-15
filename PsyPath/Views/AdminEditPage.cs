@@ -30,7 +30,7 @@ public class AdminEditPage : AdminBase
         var content = new VerticalStackLayout { Padding = new Thickness(18, 8, 18, 16) };
         content.Children.Add(Ui.Card(editor, Pal.Paper2, 8));
 
-        var saveBtn = new Btn("СОХРАНИТЬ ✓", Pal.GreenInk, Pal.Paper);
+        var saveBtn = new Btn("СОХРАНИТЬ ✓", Pal.GreenInk, Pal.OnAccent);
         saveBtn.Clicked += async (s, e) => await DoSave();
         var bottom = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(16, 8, 16, 16), BackgroundColor = Pal.Paper };
         bottom.Children.Add(status);
