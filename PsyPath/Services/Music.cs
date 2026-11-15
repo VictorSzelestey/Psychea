@@ -1,3 +1,9 @@
+#if ANDROID
+using Native = PsyPath.Droid;
+#elif IOS
+using Native = PsyPath.Ios;
+#endif
+
 namespace PsyPath.Services;
 
 // фоновая музыка: Resources/Raw/music_menu.mp3 по кругу. Вкл/выкл, громкость
@@ -13,7 +19,7 @@ public static class Music
     // MediaPlayer, как и SoundPool, читает файл с диска, поэтому трек один раз копируется из APK в кэш
     public static async Task Init()
     {
-#if ANDROID
+#if ANDROID || IOS
         if (ready) return;
         try
         {
@@ -27,7 +33,7 @@ public static class Music
                     await src.CopyToAsync(dst);
                 File.Move(part, path, true);
             }
-            Droid.Bgm.Load(path);
+            Native.Bgm.Load(path);
             ready = true;
             Apply();
         }
@@ -72,8 +78,8 @@ public static class Music
             _ => true
         };
         bool play = Settings.MusicOn && Settings.MusicVolume > 0 && here && !asleep;
-#if ANDROID
-        try { Droid.Bgm.Set(play, Volume(Settings.MusicVolume)); }
+#if ANDROID || IOS
+        try { Native.Bgm.Set(play, Volume(Settings.MusicVolume)); }
         catch (Exception ex) { CrashLog.Write("Music", ex); }
 #endif
     }

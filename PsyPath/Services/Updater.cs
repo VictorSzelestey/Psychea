@@ -48,6 +48,10 @@ public static class Updater
 
     public static async Task<UpdateCheck> Check()
     {
+        // APK ставится только на Android; на iPhone новая сборка приходит переустановкой
+        if (DeviceInfo.Platform != DevicePlatform.Android)
+            return new UpdateCheck(false, null, "На iPhone обновление — переустановкой новой сборки");
+
         try
         {
             using var timeout = new CancellationTokenSource(CheckTimeout);

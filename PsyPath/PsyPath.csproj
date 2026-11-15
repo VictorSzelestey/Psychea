@@ -3,6 +3,8 @@
   <PropertyGroup>
     <!-- Visual Studio 2022 собирает максимум .NET 9; для Visual Studio 2026 можно поставить net10.0-android -->
     <TargetFrameworks>net9.0-android</TargetFrameworks>
+    <!-- iOS собирается только на Mac (в том числе облачном в GitHub Actions), на Windows остаётся одна Android-сборка -->
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">$(TargetFrameworks);net9.0-ios</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>PsyPath</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -17,6 +19,7 @@
     <ApplicationVersion>14</ApplicationVersion>
 
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <NoWarn>$(NoWarn);CS0618;CS0612;CS8618;CS8603;CS8604</NoWarn>
   </PropertyGroup>
 
@@ -38,6 +41,9 @@
     <!-- Исходные шрифты для PNG-карточки с одинаковой кириллицей на всех устройствах. -->
     <MauiAsset Include="Resources\Fonts\Nunito-Regular.ttf" LogicalName="share_regular.ttf" />
     <MauiAsset Include="Resources\Fonts\Nunito-ExtraBold.ttf" LogicalName="share_bold.ttf" />
+
+    <!-- Манифест приватности iOS -->
+    <BundleResource Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" Include="Platforms\iOS\PrivacyInfo.xcprivacy" LogicalName="PrivacyInfo.xcprivacy" />
 
     <!-- JSON с уроками, тестом и справочником -->
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />

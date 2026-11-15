@@ -27,6 +27,9 @@ public static class Anim
         {
             return false;
         }
+#elif IOS
+        // iPhone: «Универсальный доступ» → «Движение» → «Уменьшение движения»
+        return UIKit.UIAccessibility.IsReduceMotionEnabled;
 #else
         return false;
 #endif

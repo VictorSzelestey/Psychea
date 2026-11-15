@@ -1,3 +1,9 @@
+#if ANDROID
+using Native = PsyPath.Droid;
+#elif IOS
+using Native = PsyPath.Ios;
+#endif
+
 namespace PsyPath.Services;
 
 // когда напомнить про серию: сегодня в ReminderHour, если сегодня ещё не занимался, иначе завтра
@@ -5,12 +11,12 @@ public static class Reminders
 {
     public static void Update()
     {
-#if ANDROID
+#if ANDROID || IOS
         try
         {
             if (!Settings.Reminders || !AppState.P.Onboarded)
             {
-                Droid.Reminder.Cancel();
+                Native.Reminder.Cancel();
                 return;
             }
 
@@ -24,7 +30,7 @@ public static class Reminders
             string text = streak > 0
                 ? $"Серия {streak} дн. сгорит через {left} ч. Один урок — и она продолжится."
                 : "Пять минут на урок? Манул ждёт у магнитофона.";
-            Droid.Reminder.Schedule(at, "ПСИХЕЯ", text);
+            Native.Reminder.Schedule(at, "ПСИХЕЯ", text);
         }
         catch (Exception)
         {
@@ -33,15 +39,20 @@ public static class Reminders
 #endif
     }
 
-    // Android 13+ спрашивает разрешение на уведомления; на старых версиях оно есть всегда
+    // Android 13+ спрашивает разрешение на уведомления; на старых версиях оно есть всегда.
+    // iPhone спрашивает всегда, через UNUserNotificationCenter
     public static async Task<bool> RequestPermission()
     {
         try
         {
+#if IOS
+            return await Native.Reminder.RequestPermission();
+#else
             var status = await Permissions.CheckStatusAsync<Permissions.PostNotifications>();
             if (status != PermissionStatus.Granted)
                 status = await Permissions.RequestAsync<Permissions.PostNotifications>();
             return status == PermissionStatus.Granted;
+#endif
         }
         catch (Exception)
         {

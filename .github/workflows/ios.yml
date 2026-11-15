@@ -1,0 +1,49 @@
+# Неподписанная сборка .ipa для iPhone на облачном Mac.
+# Запускается сама при каждом push в ветку iphone; вручную — Actions → iOS IPA → Run workflow
+# (кнопка видна, когда файл есть в main). Готовый файл — в Artifacts запуска.
+# Ставится на iPhone через Sideloadly под своим Apple ID: он сам подпишет сборку на 7 дней.
+name: iOS IPA
+
+on:
+  push:
+    branches: [iphone]
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Workload iOS
+        run: dotnet workload install maui-ios
+
+      # TargetFrameworks задан явно: Android-сборка и её workload в облаке не нужны
+      - name: Build
+        run: >
+          dotnet build PsyPath/PsyPath.csproj -c Release
+          -p:TargetFrameworks=net9.0-ios -f net9.0-ios
+          -p:RuntimeIdentifier=ios-arm64
+          -p:EnableCodeSigning=false
+          -p:ValidateXcodeVersion=false
+
+      # .ipa — это zip с папкой Payload, внутри которой лежит .app
+      - name: Pack IPA
+        run: |
+          app=$(find PsyPath/bin/Release/net9.0-ios/ios-arm64 -maxdepth 1 -name "*.app" | head -1)
+          mkdir Payload
+          cp -R "$app" Payload/
+          zip -qry Psychea-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Psychea-ios
+          path: Psychea-unsigned.ipa
