@@ -1,12 +1,12 @@
 # Неподписанная сборка .ipa для iPhone на облачном Mac.
-# Запускается сама при каждом push в ветку iphone; вручную — Actions → iOS IPA → Run workflow
+# Запускается сама при каждом push в ветку ios; вручную — Actions → iOS IPA → Run workflow
 # (кнопка видна, когда файл есть в main). Готовый файл — в Artifacts запуска.
 # Ставится на iPhone через Sideloadly под своим Apple ID: он сам подпишет сборку на 7 дней.
 name: iOS IPA
 
 on:
   push:
-    branches: [iphone]
+    branches: [ios]
   workflow_dispatch:
 
 jobs:

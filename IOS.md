@@ -1,6 +1,6 @@
 # Психея для iPhone
 
-Ветка `iphone`: тот же код .NET MAUI, что и для Android, плюс `PsyPath/Platforms/iOS`. Минимум — iOS 15.
+Ветка `ios`: тот же код .NET MAUI, что и для Android, плюс `PsyPath/Platforms/iOS`. Минимум — iOS 15.
 
 ## Чем iPhone отличается от Android
 
@@ -10,7 +10,7 @@
 
 ## Сборка без Mac
 
-Каждый push в ветку `iphone` запускает GitHub Actions (`.github/workflows/ios.yml`) на облачном Mac.
+Каждый push в ветку `ios` запускает GitHub Actions (`.github/workflows/ios.yml`) на облачном Mac.
 Готовый `Psychea-unsigned.ipa` — в Actions → запуск → Artifacts → `Psychea-ios`.
 
 ## Установка с Windows (бесплатный Apple ID)
