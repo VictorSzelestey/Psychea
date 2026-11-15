@@ -16,6 +16,9 @@ public class App : Application
     {
         base.OnResume();
         CrashLog.Write("Lifecycle", "Resume");
+        Updater.InBackground = false;
+        // APK мог докачаться, пока приложение было свёрнуто
+        _ = Updater.Resume();
         _ = Sync.Flush();
         Reminders.Update();
         Music.Wake();
@@ -24,6 +27,7 @@ public class App : Application
     protected override void OnSleep()
     {
         CrashLog.Write("Lifecycle", "Sleep");
+        Updater.InBackground = true;
         Music.Sleep();
         base.OnSleep();
     }

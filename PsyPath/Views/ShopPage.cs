@@ -50,8 +50,8 @@ public class ShopPage : AdminBase
         Show("МАГАЗИН", s);
     }
 
-    // цена с кристаллом или состояние покупки
-    static View PriceTag(bool owned, bool current, int price, string usedCaption)
+    // цена с кристаллом или состояние покупки; нужна и выбору аватарки
+    internal static View PriceTag(bool owned, bool current, int price, string usedCaption)
     {
         if (current) return Ui.Text("✓ " + usedCaption, 11, Pal.GreenInk, true, TextAlignment.Center);
         if (owned) return Ui.Text("КУПЛЕНО", 11, Pal.Ink2, true, TextAlignment.Center);
@@ -105,7 +105,7 @@ public class ShopPage : AdminBase
         Ui.OnTap(card, async () =>
         {
             if (current) return;
-            if (!owned && !await Purchase($"тему «{theme.Name}»", theme.Id, theme.Price, "Она сразу включится.")) return;
+            if (!owned && !await Purchase(this, $"тему «{theme.Name}»", theme.Id, theme.Price, "Она сразу включится.")) return;
             Crystals.UseTheme(theme);
             Sound.Play("ok");
             // новые цвета нужны всем экранам — пересобираем вкладки, как после смены размера текста
@@ -130,7 +130,7 @@ public class ShopPage : AdminBase
         Ui.OnTap(card, async () =>
         {
             if (current) return;
-            if (!owned && !await Purchase($"аватарку «{caption}»", id, price, "Она сразу станет твоей.")) return;
+            if (!owned && !await Purchase(this, $"аватарку «{caption}»", id, price, "Она сразу станет твоей.")) return;
             AppState.P.Avatar = id;
             AppState.Save();
             Sound.Play("ok");
@@ -140,16 +140,16 @@ public class ShopPage : AdminBase
     }
 
     // спросить и списать; false — передумал или не хватает кристаллов
-    async Task<bool> Purchase(string what, string id, int price, string after)
+    internal static async Task<bool> Purchase(Page page, string what, string id, int price, string after)
     {
         int lack = price - Crystals.Balance;
         if (lack > 0)
         {
             Sound.Play("bad");
-            await Dlg.Alert(this, "НЕ ХВАТАЕТ", $"Нужно ещё {lack} {Crystals.Word(lack)}. Проходи новые уроки и держи серию — кристаллы набегут.");
+            await Dlg.Alert(page, "НЕ ХВАТАЕТ", $"Нужно ещё {lack} {Crystals.Word(lack)}. Проходи новые уроки и держи серию — кристаллы набегут.");
             return false;
         }
-        if (!await Dlg.Confirm(this, "ПОКУПКА", $"Купить {what} за {price} {Crystals.Word(price)}? {after}", "КУПИТЬ", "ОТМЕНА"))
+        if (!await Dlg.Confirm(page, "ПОКУПКА", $"Купить {what} за {price} {Crystals.Word(price)}? {after}", "КУПИТЬ", "ОТМЕНА"))
             return false;
         Crystals.Buy(id, price);
         Sound.Play("win");

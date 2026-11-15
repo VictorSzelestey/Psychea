@@ -188,16 +188,29 @@ public class ProfilePage : DataPage
         var temperament = AppState.LastTemperament();
         if (temperament is var (temperTitle, temperAbout, kind))
         {
+            // карточка темперамента целиком уходит картинкой в «Поделиться»
+            var temperCard = new VerticalStackLayout { Spacing = 10, Padding = new Thickness(0, 6), BackgroundColor = Pal.Paper };
             if (kind is Temper k)
             {
                 beast = new Beast(k, 120);
                 beast.Start();
-                hist.Children.Add(beast);
+                temperCard.Children.Add(beast);
             }
-            hist.Children.Add(Ui.Text("ТВОЙ ТЕМПЕРАМЕНТ", 11, Pal.Ink2, true, TextAlignment.Center));
-            hist.Children.Add(Ui.Text(temperTitle, 20, Pal.Ink, true, TextAlignment.Center));
+            temperCard.Children.Add(Ui.Text("ТВОЙ ТЕМПЕРАМЕНТ", 11, Pal.Ink2, true, TextAlignment.Center));
+            temperCard.Children.Add(Ui.Text(temperTitle, 20, Pal.Ink, true, TextAlignment.Center));
             if (temperAbout.Length > 0)
-                hist.Children.Add(Ui.Text(temperAbout, 13, Pal.Ink, false, TextAlignment.Center));
+                temperCard.Children.Add(Ui.Text(temperAbout, 13, Pal.Ink, false, TextAlignment.Center));
+            temperCard.Children.Add(Ui.Text("ПСИХЕЯ // ТРЕНАЖЁР ПСИХОЛОГА", 10, Pal.Ink2, true, TextAlignment.Center));
+            hist.Children.Add(temperCard);
+            hist.Children.Add(Form.Link("ПОДЕЛИТЬСЯ ТЕМПЕРАМЕНТОМ", Pal.TealInk, async () =>
+            {
+                // на картинке — спокойная поза животного, после отправки анимация продолжается
+                beast?.Stop();
+                bool shared = await ShareCard.Share(temperCard, "Психея: мой темперамент — " + temperTitle);
+                beast?.Start();
+                if (!shared)
+                    await Dlg.Alert(this, "НЕ ВЫШЛО", "Не удалось сделать картинку. Попробуй ещё раз.");
+            }, TextAlignment.Center));
         }
         else
             hist.Children.Add(Ui.Text("Темперамент пока неизвестен. Пройди опросник «Темперамент» или EPI.", 12, Pal.Ink2, false, TextAlignment.Center));

@@ -30,11 +30,12 @@ public class AvatarPage : AdminBase
                 new ColumnDefinition(GridLength.Star)
             }
         };
-        // бесплатные и купленные; остальные ждут в магазине
-        var items = Avatars.All.Where(a => Crystals.Owns(a.Id, a.Price)).Select(a => (a.Id, a.Name)).Prepend(("", "Без картинки")).ToList();
+        // все аватарки: некупленные — с ценой, нажатие предлагает купить
+        var items = Avatars.All.Prepend(("", "Без картинки", 0)).ToList();
         for (int i = 0; i < items.Count; i++)
         {
-            var (id, caption) = items[i];
+            var (id, caption, price) = items[i];
+            bool owned = Crystals.Owns(id, price);
             bool current = AppState.P.Avatar == id || (id == "" && !Avatars.Exists(AppState.P.Avatar));
             if (i % 3 == 0) grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
@@ -43,10 +44,12 @@ public class AvatarPage : AdminBase
             box.Children.Add(Ui.Text(caption, 11, Pal.Ink, current, TextAlignment.Center));
             // выбранная — светлый фон и галочка в подписи, не только цвет
             if (current) ((Label)box.Children[1]).Text = "✓ " + caption;
+            if (!owned) box.Children.Add(ShopPage.PriceTag(false, false, price, ""));
             var card = Ui.Card(box, current ? Pal.Amber : Pal.Paper, 8);
-            SemanticProperties.SetDescription(card, caption + (current ? ", выбрана" : ""));
+            SemanticProperties.SetDescription(card, caption + (current ? ", выбрана" : owned ? "" : $", цена {price} {Crystals.Word(price)}"));
             Ui.OnTap(card, async () =>
             {
+                if (!owned && !await ShopPage.Purchase(this, $"аватарку «{caption}»", id, price, "Она сразу станет твоей.")) return;
                 AppState.P.Avatar = id;
                 AppState.Save();
                 Sound.Play("ok");
@@ -57,7 +60,7 @@ public class AvatarPage : AdminBase
             grid.Children.Add(card);
         }
         s.Children.Add(grid);
-        s.Children.Add(Form.Link("ЕЩЁ АВАТАРКИ — В МАГАЗИНЕ ▶", Pal.TealInk, async () => await Push(new ShopPage()), TextAlignment.Center));
+        s.Children.Add(Form.Link("ТЕМЫ ОФОРМЛЕНИЯ — В МАГАЗИНЕ ▶", Pal.TealInk, async () => await Push(new ShopPage()), TextAlignment.Center));
         Show("АВАТАРКА", s);
     }
 }

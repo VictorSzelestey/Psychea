@@ -21,6 +21,9 @@ public class SettingsPage : AdminBase
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // экран открыли заново, а APK ещё качается в фоне
+        if (pending == null && !updating && Updater.Downloading)
+            ShowUpdate("Обновление скачивается, прогресс — в шторке. Установщик откроется сам", Pal.Ink2);
         if (pending == null) return;
         var update = pending;
         pending = null;

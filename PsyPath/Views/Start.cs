@@ -21,6 +21,8 @@ public static class Start
     // автообновление: не чаще раза в сутки, когда приложение уже открыто на вкладках
     public static async Task OfferUpdate()
     {
+        // приложение закрыли, пока качался APK: предложить установку
+        await Updater.Resume();
         if (!Settings.AutoUpdate) return;
         if (DateTime.UtcNow - Preferences.Default.Get("update_checked", DateTime.MinValue) < TimeSpan.FromDays(1)) return;
 
