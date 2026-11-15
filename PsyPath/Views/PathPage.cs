@@ -95,6 +95,7 @@ public class PathPage : DataPage
         }
 
         path.Children.Add(HeroCard(current));
+        path.Children.Add(DailyCard());
         var review = ReviewCard();
         if (review != null) path.Children.Add(review);
 
@@ -210,12 +211,12 @@ public class PathPage : DataPage
             LessonState.Open => Pal.Paper2,
             _ => Pal.Gray
         };
-        Color text = state is LessonState.Current or LessonState.Mastered ? Pal.Paper : Pal.Ink;
+        Color text = state is LessonState.Current or LessonState.Mastered ? Pal.OnAccent : Pal.Ink;
 
         View mark;
         if (isLocked)
         {
-            mark = new PixelIcon(Icons.Lock, Pal.Paper, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
+            mark = new PixelIcon(Icons.Lock, Pal.OnAccent, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
         }
         else
         {
@@ -299,8 +300,8 @@ public class PathPage : DataPage
         Border avatar;
         if (Avatars.Exists(AppState.P.Avatar))
         {
-            avatar = Avatars.View(AppState.P.Avatar, Api.User?.DisplayName ?? "", 52);
-            avatar.StrokeThickness = 2;
+            avatar = Avatars.View(AppState.P.Avatar, Api.User?.DisplayName ?? "", 52, AppState.P.Frame);
+            if (Cosmetics.FindFrame(AppState.P.Frame) == null) avatar.StrokeThickness = 2;
         }
         else
             avatar = new Border
@@ -362,6 +363,35 @@ public class PathPage : DataPage
         return box;
     }
 
+    // задания дня: прогресс и награда; выполненные — с галочкой и зачёркнутой наградой
+    static View DailyCard()
+    {
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text("ЗАДАНИЯ ДНЯ", 12, Pal.RedInk, true));
+        foreach (var t in Daily.Today())
+        {
+            bool done = Daily.IsDone(t);
+            int have = Daily.ProgressOf(t);
+            var row = new Grid
+            {
+                ColumnSpacing = 8,
+                ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
+            };
+            var left = new VerticalStackLayout { Spacing = 3 };
+            left.Children.Add(Ui.Text((done ? "✓ " : "") + t.Title, 13, done ? Pal.GreenInk : Pal.Ink, true));
+            if (!done) left.Children.Add(new Bar(Pal.Teal) { Value = (double)have / t.Goal });
+            row.Children.Add(left);
+            var prize = new HorizontalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
+            prize.Children.Add(new PixelIcon(Icons.Crystal, Pal.Teal, 14, Pal.Cyan));
+            prize.Children.Add(Ui.Text(done ? "ПОЛУЧЕНО" : $"{have}/{t.Goal}  +{t.Reward}", 12, done ? Pal.Ink2 : Pal.Ink, true));
+            Grid.SetColumn(prize, 1);
+            row.Children.Add(prize);
+            SemanticProperties.SetDescription(row, done ? $"{t.Title}: выполнено" : $"{t.Title}: {have} из {t.Goal}, награда {t.Reward} {Crystals.Word(t.Reward)}");
+            box.Children.Add(row);
+        }
+        return Ui.Card(box, Pal.Paper, 14);
+    }
+
     // 12345 → 12K: пять цифр в верхней панели уже не помещаются рядом с тремя счётчиками,
     // а при крупном тексте сокращаются уже четыре: 1840 → 1.8K
     static string Short(int n)
@@ -400,13 +430,14 @@ public class PathPage : DataPage
         if (current != null)
         {
             var lesson = current;
-            var go = new Btn("▶  Начать урок", Pal.Violet, Pal.Paper, 15);
+            var go = new Btn("▶  Начать урок", Pal.Violet, Pal.OnAccent, 15);
             go.Clicked += async (s, e) => await Push(new LessonPage(lesson));
             text.Children.Add(go);
         }
 
         var g = new Grid();
-        var cat = Ui.Mood("love", CatHeight);
+        // в наряде из магазина — манул в нём, иначе влюблённый манул
+        var cat = AppState.P.Outfit.Length > 0 ? Ui.Mascot(CatHeight) : Ui.Mood("love", CatHeight);
         cat.WidthRequest = CatHeight * 900 / 811;
         cat.HorizontalOptions = LayoutOptions.End;
         cat.VerticalOptions = LayoutOptions.End;

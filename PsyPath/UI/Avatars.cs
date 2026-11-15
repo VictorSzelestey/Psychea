@@ -26,7 +26,8 @@ public static class Avatars
     public static bool Exists(string? id) => All.Any(a => a.Id == id);
 
     // круглая аватарка; без картинки — первая буква имени на сиреневом круге
-    public static Border View(string? id, string name, double size)
+    // frame — рамка из магазина (Cosmetics.Frames): толстая цветная обводка вместо тонкой
+    public static Border View(string? id, string name, double size, string? frame = null)
     {
         View content;
         if (Exists(id))
@@ -51,6 +52,11 @@ public static class Avatars
             VerticalOptions = LayoutOptions.Center,
             HorizontalOptions = LayoutOptions.Center
         };
+        if (Cosmetics.FindFrame(frame) is AvatarFrame f)
+        {
+            circle.Stroke = Cosmetics.FrameBrush(f);
+            circle.StrokeThickness = Math.Max(3, size * 0.06);
+        }
         // имя игрока всегда написано рядом
         AutomationProperties.SetIsInAccessibleTree(circle, false);
         return circle;

@@ -130,7 +130,7 @@ public class AdminQuizPage : AdminFormPage
         var bottom = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(16, 8, 16, 12), BackgroundColor = Pal.Paper };
         status = Ui.Text(status.Text, 12, status.TextColor, true);
         bottom.Children.Add(status);
-        var saveBtn = new Btn("СОХРАНИТЬ ✓", Pal.GreenInk, Pal.Paper);
+        var saveBtn = new Btn("СОХРАНИТЬ ✓", Pal.GreenInk, Pal.OnAccent);
         saveBtn.Clicked += async (o, e) => await DoSave();
         bottom.Children.Add(saveBtn);
         if (delete != null)

@@ -27,7 +27,7 @@ public class LessonPage : BasePage
     readonly Bar progress = new(Pal.Green);
     readonly VerticalStackLayout body = new() { Spacing = 12, Padding = new Thickness(18, 12, 18, 24) };
     readonly ScrollView scroll = new();
-    readonly Btn actionBtn = new("ПРОВЕРИТЬ", Pal.Violet, Pal.Paper);
+    readonly Btn actionBtn = new("ПРОВЕРИТЬ", Pal.Violet, Pal.OnAccent);
     readonly Border feedback;
     readonly Label fbTitle = Ui.Text("", 18, Pal.Ink, true);
     readonly Label fbText = Ui.Text("", 13, Pal.Ink);
@@ -232,7 +232,7 @@ public class LessonPage : BasePage
 
         feedback.IsVisible = false;
         actionBtn.Text = "ПРОВЕРИТЬ";
-        actionBtn.SetColors(Pal.Violet, Pal.Paper);
+        actionBtn.SetColors(Pal.Violet, Pal.OnAccent);
         actionBtn.Enabled = false;
 
         body.Children.Clear();
@@ -265,7 +265,7 @@ public class LessonPage : BasePage
         bool last = i == theory.Count - 1;
         feedback.IsVisible = false;
         actionBtn.Text = last ? "К ЗАДАНИЯМ ▶" : "ДАЛЕЕ ▶";
-        actionBtn.SetColors(Pal.Violet, Pal.Paper);
+        actionBtn.SetColors(Pal.Violet, Pal.OnAccent);
 
         body.Children.Clear();
         body.Children.Add(Ui.Text($"ТЕОРИЯ  //  {i + 1} ИЗ {theory.Count}", 11, Pal.TealInk, true));
@@ -382,7 +382,7 @@ public class LessonPage : BasePage
         _ = ShowFeedbackAnimated(ok);
 
         actionBtn.Text = "ПРОДОЛЖИТЬ";
-        actionBtn.SetColors(ok ? Pal.GreenInk : Pal.RedInk, Pal.Paper);
+        actionBtn.SetColors(ok ? Pal.GreenInk : Pal.RedInk, Pal.OnAccent);
         actionBtn.Enabled = true;
     }
 
@@ -862,6 +862,8 @@ public class LessonPage : BasePage
             if (mistakes == 0) p.PerfectLessons++;
         }
         var newAch = AppState.CheckAchievements();
+        Daily.Count(lessons: lesson != null ? 1 : 0, perfect: lesson != null && mistakes == 0 ? 1 : 0);
+        var tasks = Daily.Collect();
         AppState.Save();
 
         int levelNow = AppState.Level;
@@ -941,8 +943,10 @@ public class LessonPage : BasePage
 
         if (newAch.Count > 0)
             stack.Children.Add(Ui.Bullets("НОВЫЕ ДОСТИЖЕНИЯ ★", newAch));
+        if (tasks.Count > 0)
+            stack.Children.Add(Ui.Bullets("ЗАДАНИЯ ДНЯ ВЫПОЛНЕНЫ ✓", tasks));
 
-        var done = new Btn("ПРОДОЛЖИТЬ ▶", Pal.GreenInk, Pal.Paper);
+        var done = new Btn("ПРОДОЛЖИТЬ ▶", Pal.GreenInk, Pal.OnAccent);
         done.Clicked += async (s, e) => await Pop();
         stack.Children.Add(done);
 
@@ -956,6 +960,8 @@ public class LessonPage : BasePage
         Confetti();
 
         // первое занятие дня поставило серию на рубеж: заставка поверх конфетти
+        int saved = Streak.TakeFreezeNotice();
+        if (saved > 0) await Dlg.Alert(this, "СЕРИЯ СПАСЕНА", $"Заморозка закрыла пропущенные дни: {saved}. Серия продолжается — {AppState.P.Streak} дн.");
         int days = Streak.TakeCelebration();
         if (days > 0)
         {

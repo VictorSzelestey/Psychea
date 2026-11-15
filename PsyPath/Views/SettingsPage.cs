@@ -168,7 +168,7 @@ public class SettingsPage : AdminBase
         news.Clicked += async (_, _) => await Push(new ReleaseNotesPage());
         s.Children.Add(news);
 
-        var check = new Btn("ПРОВЕРИТЬ ОБНОВЛЕНИЯ", Pal.Violet, Pal.Paper, 15);
+        var check = new Btn("ПРОВЕРИТЬ ОБНОВЛЕНИЯ", Pal.Violet, Pal.OnAccent, 15);
         check.Clicked += async (o, e) => await CheckUpdates();
         s.Children.Add(check);
         // подпись одна на все пересборки экрана: на неё пишет идущая проверка

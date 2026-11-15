@@ -31,14 +31,20 @@ public static class Pal
     public static Color Gray { get; private set; } = Color.FromArgb("#AE9FC3");
     public static readonly Color Cyan = Color.FromArgb("#49C6DA");
 
-    public static readonly Color GreenSoft = Color.FromArgb("#CFEFD9");
-    public static readonly Color RedSoft = Color.FromArgb("#FAD3DF");
+    // мягкая заливка «верно» и «неверно»; в тёмной теме — тёмная, текст на ней Ink
+    public static Color GreenSoft { get; private set; } = Color.FromArgb("#CFEFD9");
+    public static Color RedSoft { get; private set; } = Color.FromArgb("#FAD3DF");
 
     // тёмные варианты для текста на карточках и для кнопок со светлой надписью: контраст не ниже 4.5 (WCAG AA).
     // TealInk — цвет ссылок, имя осталось от прежней палитры
-    public static readonly Color RedInk = Color.FromArgb("#A32A54");
+    public static Color RedInk { get; private set; } = Color.FromArgb("#A32A54");
     public static Color TealInk { get; private set; } = Color.FromArgb("#553A8B");
-    public static readonly Color GreenInk = Color.FromArgb("#276638");
+    public static Color GreenInk { get; private set; } = Color.FromArgb("#276638");
+
+    // надпись на кнопке с заливкой Violet, GreenInk, RedInk или TealInk: в светлых темах светлая, в тёмной — тёмная.
+    // Один цвет не может быть и читаемым текстом на тёмном фоне, и фоном под светлым текстом
+    public static Color OnAccent { get; private set; } = Color.FromArgb("#FBF5F3");
+    public static bool Dark { get; private set; }
 
     public static Color Cycle(int i)
     {
@@ -61,6 +67,12 @@ public static class Pal
         Amber = t.Accent;
         TealInk = t.Link;
         Gray = t.Gray;
+        Dark = t.Dark;
+        OnAccent = t.OnAccent ?? t.Paper;
+        GreenSoft = t.GreenSoft ?? Color.FromArgb("#CFEFD9");
+        RedSoft = t.RedSoft ?? Color.FromArgb("#FAD3DF");
+        RedInk = t.RedInk ?? Color.FromArgb("#A32A54");
+        GreenInk = t.GreenInk ?? Color.FromArgb("#276638");
 #if ANDROID
         // фон окна под страницами (MainActivity): без него при смене экрана мелькает старый цвет
         MainThread.BeginInvokeOnMainThread(() =>
@@ -82,5 +94,16 @@ public static class Pal
         (Color.FromArgb("#EEDFD5"), Color.FromArgb("#8C6448"))
     };
 
-    public static (Color Fill, Color Line) Pair(int i) => pairs[i % pairs.Length];
+    // в тёмной теме — тёмные заливки и светлые линии: текст на плашках светлый
+    static readonly (Color Fill, Color Line)[] pairsDark =
+    {
+        (Color.FromArgb("#22314F"), Color.FromArgb("#7FA6F0")),
+        (Color.FromArgb("#4A3320"), Color.FromArgb("#F0A060")),
+        (Color.FromArgb("#1E3F40"), Color.FromArgb("#63C9CB")),
+        (Color.FromArgb("#4A2236"), Color.FromArgb("#EC86B2")),
+        (Color.FromArgb("#463D1E"), Color.FromArgb("#E0C060")),
+        (Color.FromArgb("#3D3029"), Color.FromArgb("#C79A7A"))
+    };
+
+    public static (Color Fill, Color Line) Pair(int i) => Dark ? pairsDark[i % pairsDark.Length] : pairs[i % pairs.Length];
 }

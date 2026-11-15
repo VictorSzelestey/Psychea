@@ -74,7 +74,7 @@ public class AdminContentPage : AdminBase
         box.Children.Add(Ui.Text("ТЕОРИЯ К УРОКАМ", 14, Pal.Ink, true));
         box.Children.Add(Ui.Text($"Уроков без теории на сервере: {theoryUnpublished.Count}. В приложении она уже есть. Задания и правки на сервере не изменятся — добавится только теория.", 12, Pal.Ink));
 
-        var publish = new Btn("ДОБАВИТЬ ТЕОРИЮ ДЛЯ ВСЕХ", Pal.Violet, Pal.Paper, 14);
+        var publish = new Btn("ДОБАВИТЬ ТЕОРИЮ ДЛЯ ВСЕХ", Pal.Violet, Pal.OnAccent, 14);
         publish.Clicked += async (s, e) =>
         {
             if (!await Dlg.Confirm(this, "ДОБАВИТЬ ТЕОРИЮ?", $"Теория появится в {theoryUnpublished.Count} уроках у всех пользователей при следующем запуске приложения.", "ДОБАВИТЬ", "ОТМЕНА"))
@@ -113,7 +113,7 @@ public class AdminContentPage : AdminBase
         box.Children.Add(Ui.Text($"ЮНИТ {secId}  //  {secTitle.ToUpperInvariant()}", 14, Pal.Ink, true));
         box.Children.Add(Ui.Text($"{lessons.Count} уроков, {tasks} заданий. Есть в приложении, на сервере ещё нет.", 12, Pal.Ink));
 
-        var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.Paper, 14);
+        var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.OnAccent, 14);
         publish.Clicked += async (s, e) =>
         {
             if (!await Dlg.Confirm(this, "ОПУБЛИКОВАТЬ?", $"Уроки юнита «{secTitle}» ({lessons.Count}) появятся у всех пользователей при следующем запуске приложения.", "ОПУБЛИКОВАТЬ", "ОТМЕНА"))
@@ -164,7 +164,7 @@ public class AdminContentPage : AdminBase
         box.Children.Add(Ui.Text(quizTitle, 14, Pal.Ink, true));
         box.Children.Add(Ui.Text($"{item["questions"]?.AsArray().Count ?? 0} вопросов. Есть в приложении, на сервере ещё нет.", 12, Pal.Ink));
 
-        var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.Paper, 14);
+        var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.OnAccent, 14);
         publish.Clicked += async (s, e) =>
         {
             if (!await Dlg.Confirm(this, "ОПУБЛИКОВАТЬ?", $"Опросник «{quizTitle}» появится у всех пользователей при следующем запуске приложения.", "ОПУБЛИКОВАТЬ", "ОТМЕНА"))
@@ -227,7 +227,7 @@ public class AdminContentPage : AdminBase
             for (int i = 0; i < items.Count; i++)
                 AddQuiz(stack, items[i]!, i);
 
-            var add = new Btn("+ НОВЫЙ ОПРОСНИК", Pal.Violet, Pal.Paper);
+            var add = new Btn("+ НОВЫЙ ОПРОСНИК", Pal.Violet, Pal.OnAccent);
             add.Clicked += async (s, e) =>
             {
                 var quiz = new Questionnaire
@@ -246,7 +246,7 @@ public class AdminContentPage : AdminBase
         else if (name == "reference")
         {
             var entries = root!["entries"]!.AsArray();
-            var add = new Btn("+ НОВАЯ СТАТЬЯ", Pal.Violet, Pal.Paper);
+            var add = new Btn("+ НОВАЯ СТАТЬЯ", Pal.Violet, Pal.OnAccent);
             add.Clicked += async (_, _) => await Push(new AdminReferenceEntryPage(new RefEntry(),
                 entries.Select(n => Str(n!, "term")).ToList(),
                 text => Save(text, typeof(RefEntry), (doc, item) => { doc["entries"]!.AsArray().Add(item); return doc; })));

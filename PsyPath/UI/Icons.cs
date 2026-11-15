@@ -53,6 +53,19 @@ public static class Icons
         "........"
     };
 
+    // снежинка: заморозка серии
+    public static readonly string[] Snow =
+    {
+        "...#....",
+        ".#.#.#..",
+        "..###...",
+        "#######.",
+        "..###...",
+        ".#.#.#..",
+        "...#....",
+        "........"
+    };
+
     public static readonly string[] Bolt =
     {
         "....###.",

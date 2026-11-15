@@ -38,7 +38,7 @@ public class DeleteAccountPage : AdminBase
         s.Children.Add(status);
 
         var bottom = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(16, 8, 16, 12), BackgroundColor = Pal.Paper };
-        var delete = new Btn("УДАЛИТЬ НАВСЕГДА", Pal.RedInk, Pal.Paper);
+        var delete = new Btn("УДАЛИТЬ НАВСЕГДА", Pal.RedInk, Pal.OnAccent);
         delete.Clicked += async (o, e) => await Delete();
         bottom.Children.Add(delete);
         bottom.Children.Add(Form.Link("ОТМЕНА", Pal.Ink2, async () => await Pop(), TextAlignment.Center));

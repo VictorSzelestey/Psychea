@@ -52,7 +52,7 @@ public class LoginPage : BasePage
 
         stack.Children.Add(status);
 
-        var go = new Btn(register ? "СОЗДАТЬ АККАУНТ ▶" : "ВОЙТИ ▶", Pal.Violet, Pal.Paper);
+        var go = new Btn(register ? "СОЗДАТЬ АККАУНТ ▶" : "ВОЙТИ ▶", Pal.Violet, Pal.OnAccent);
         go.Clicked += async (s, e) => await Submit();
         stack.Children.Add(go);
 

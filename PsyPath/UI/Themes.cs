@@ -1,10 +1,13 @@
 namespace PsyPath.UI;
 
 // тема из магазина: перекрашивает фон, карточки, текст и главную кнопку.
-// Контраст каждой проверен: текст Ink на Paper, Bg и Accent — не ниже 6.7, светлая надпись на Primary — не ниже 5.2 (WCAG AA)
+// Контраст каждой проверен: текст Ink на Paper, Bg и Accent — не ниже 6.7, надпись OnAccent на Primary — не ниже 5.2 (WCAG AA).
+// Хвостовые цвета задаёт только тёмная тема; у светлых они общие (см. Pal.Apply)
 public record Theme(string Id, string Name, int Price,
     Color Bg, Color Hill, Color HillFar, Color Paper, Color Paper2, Color Line,
-    Color Ink, Color Ink2, Color Primary, Color Accent, Color Link, Color Gray);
+    Color Ink, Color Ink2, Color Primary, Color Accent, Color Link, Color Gray,
+    bool Dark = false, Color? OnAccent = null, Color? GreenSoft = null, Color? RedSoft = null,
+    Color? RedInk = null, Color? GreenInk = null);
 
 public static class Themes
 {
@@ -27,6 +30,12 @@ public static class Themes
         new("rose", "Роза", 150,
             C("#F7E1EA"), C("#F1D3E0"), C("#EAC5D6"), C("#FFF7FA"), C("#FBEAF1"), C("#EDCADB"),
             C("#5B1F3D"), C("#7A3F5C"), C("#8E3B7A"), C("#F2C2D7"), C("#7E2E68"), C("#CFA2B8")),
+        // тёмная: светлый текст, а кнопки — светлые заливки с тёмной надписью
+        new("night", "Ночь", 0,
+            C("#1B1630"), C("#221C3B"), C("#282145"), C("#2A2342"), C("#332B4F"), C("#44395F"),
+            C("#EDE6FA"), C("#BFB3D9"), C("#B79CF0"), C("#4B3B78"), C("#C7B2F7"), C("#8A7DA6"),
+            Dark: true, OnAccent: C("#1B1530"), GreenSoft: C("#1F3D2E"), RedSoft: C("#4A2333"),
+            RedInk: C("#F59DBA"), GreenInk: C("#8FD9AE")),
     };
 
     // неизвестная или пустая тема — сиреневая

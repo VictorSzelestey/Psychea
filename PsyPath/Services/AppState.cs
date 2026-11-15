@@ -278,7 +278,8 @@ public static class AppState
             if (!DateTime.TryParseExact(P.LastActive, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var last))
                 return 0;
             int diff = (DateTime.Today - last.Date).Days;
-            return diff <= 1 ? P.Streak : 0;
+            // пропущенные дни закрывают заморозки: серия жива, пока их хватает
+            return diff <= 1 + P.Freezes ? P.Streak : 0;
         }
     }
 
@@ -289,7 +290,16 @@ public static class AppState
         {
             int diff = (today - last.Date).Days;
             if (diff == 0) return;
-            P.Streak = diff == 1 ? P.Streak + 1 : 1;
+            int missed = diff - 1;
+            if (missed == 0) P.Streak++;
+            else if (missed <= P.Freezes)
+            {
+                // заморозки тратятся сами, по одной на пропущенный день
+                P.Freezes -= missed;
+                P.FreezesJustUsed = missed;
+                P.Streak++;
+            }
+            else P.Streak = 1;
         }
         else
         {
@@ -452,6 +462,8 @@ public static class AppState
         AddXp(15);
         RegisterActivity();
         CheckAchievements();
+        Daily.Count(quizzes: 1);
+        Daily.Collect();
         Save();
 
         Sync.Questionnaire(q.Id, r.Headline,

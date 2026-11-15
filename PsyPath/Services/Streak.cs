@@ -30,4 +30,29 @@ public static class Streak
         AppState.Save();
         return p.Streak;
     }
+
+    // заморозка сработала при этом занятии: сколько потрачено, показать один раз
+    public static int TakeFreezeNotice()
+    {
+        var p = AppState.P;
+        int used = p.FreezesJustUsed;
+        if (used == 0) return 0;
+        p.FreezesJustUsed = 0;
+        AppState.Save();
+        return used;
+    }
+
+    public const int FreezePrice = 50;
+    public const int MaxFreezes = 2;
+
+    // false — уже две или не хватает кристаллов
+    public static bool BuyFreeze()
+    {
+        var p = AppState.P;
+        if (p.Freezes >= MaxFreezes || p.Crystals < FreezePrice) return false;
+        p.Crystals -= FreezePrice;
+        p.Freezes++;
+        AppState.Save();
+        return true;
+    }
 }

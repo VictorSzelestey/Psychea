@@ -115,7 +115,7 @@ public class AdminPage : AdminBase
         int col = 0;
         foreach (int n in new[] { 100, 1000 })
         {
-            var give = new Btn($"+{n}", Pal.Violet, Pal.Paper, 15);
+            var give = new Btn($"+{n}", Pal.Violet, Pal.OnAccent, 15);
             give.Clicked += (_, _) =>
             {
                 if (Api.User?.IsAdmin != true) return;

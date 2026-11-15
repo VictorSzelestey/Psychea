@@ -100,7 +100,7 @@ public class ProfilePage : DataPage
 
             // аватарка видна в топе игроков; сменить — нажатием на неё
             var avatar = new VerticalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
-            avatar.Children.Add(Avatars.View(p.Avatar, user.DisplayName, 64));
+            avatar.Children.Add(Avatars.View(p.Avatar, user.DisplayName, 64, p.Frame));
             avatar.Children.Add(Ui.Text("СМЕНИТЬ", 10, Pal.TealInk, true, TextAlignment.Center));
             SemanticProperties.SetDescription(avatar, "Сменить аватарку");
             Ui.OnTap(avatar, async () => await Push(new AvatarPage()));
@@ -117,7 +117,7 @@ public class ProfilePage : DataPage
 
             if (user.CanEditContent)
             {
-                var admin = new Btn(user.IsAdmin ? "АДМИН-ПАНЕЛЬ ▶" : "УПРАВЛЕНИЕ КОНТЕНТОМ ▶", Pal.TealInk, Pal.Paper);
+                var admin = new Btn(user.IsAdmin ? "АДМИН-ПАНЕЛЬ ▶" : "УПРАВЛЕНИЕ КОНТЕНТОМ ▶", Pal.TealInk, Pal.OnAccent);
                 admin.Clicked += async (s, e) => await Push(new AdminPage());
                 stack.Children.Add(admin);
             }
@@ -160,18 +160,20 @@ public class ProfilePage : DataPage
         AddStat($"{p.History.Count} ОПР.", Icons.Tape, 1, 1);
         var crystals = AddStat($"{p.Crystals}", Icons.Crystal, 2, 0, Pal.Teal, Pal.Cyan);
         SemanticProperties.SetDescription(crystals, $"Кристаллы: {p.Crystals}");
-        var shop = new Btn("МАГАЗИН ▶", Pal.Violet, Pal.Paper, 14);
+        var shop = new Btn("МАГАЗИН ▶", Pal.Violet, Pal.OnAccent, 14);
         shop.Clicked += async (s, e) => await Push(new ShopPage());
         Grid.SetRow(shop, 2);
         Grid.SetColumn(shop, 1);
         stats.Children.Add(shop);
         stack.Children.Add(stats);
+        if (p.Freezes > 0)
+            stack.Children.Add(Ui.Text($"ЗАМОРОЗОК СЕРИИ: {p.Freezes} ИЗ {Streak.MaxFreezes} — пропущенный день не сожжёт серию", 11, Pal.Ink2, true));
 
         stack.Children.Add(Ui.Text($"ЦЕЛЬ ДНЯ: {p.DailyGoalMin} МИН (≈{AppState.DailyGoalXp} XP)", 12, Pal.Ink2, true));
 
         if (user != null)
         {
-            var topBtn = new Btn("ТОП ИГРОКОВ ▶", Pal.Violet, Pal.Paper, 15);
+            var topBtn = new Btn("ТОП ИГРОКОВ ▶", Pal.Violet, Pal.OnAccent, 15);
             topBtn.Clicked += async (s, e) => await Push(new TopPage());
             stack.Children.Add(topBtn);
         }
