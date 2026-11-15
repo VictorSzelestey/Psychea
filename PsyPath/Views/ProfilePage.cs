@@ -142,20 +142,29 @@ public class ProfilePage : DataPage
             ColumnSpacing = 8,
             RowSpacing = 8,
             ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) },
-            RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) }
+            RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) }
         };
-        void AddStat(string text, string[] icon, int row, int col)
+        View AddStat(string text, string[] icon, int row, int col, Color? color = null, Color? accent = null)
         {
-            var lcd = Ui.Lcd(text, 14, icon);
+            var lcd = Ui.Lcd(text, 14, icon, color, accent);
             Grid.SetRow(lcd, row);
             Grid.SetColumn(lcd, col);
             stats.Children.Add(lcd);
+            return lcd;
         }
         AddStat($"{p.TotalXp} XP", Icons.Bolt, 0, 0);
-        AddStat($"{AppState.DisplayStreak} ДН.", Icons.Flame, 0, 1);
+        var (flame, flameAccent) = StreakBurst.FlameColors(AppState.DisplayStreak);
+        AddStat($"{AppState.DisplayStreak} ДН.", Icons.Flame, 0, 1, flame, flameAccent);
         int acc = p.Answered == 0 ? 0 : (int)Math.Round(p.Correct * 100.0 / p.Answered);
         AddStat($"{acc}%", Icons.Target, 1, 0);
         AddStat($"{p.History.Count} ОПР.", Icons.Tape, 1, 1);
+        var crystals = AddStat($"{p.Crystals}", Icons.Crystal, 2, 0, Pal.Teal, Pal.Cyan);
+        SemanticProperties.SetDescription(crystals, $"Кристаллы: {p.Crystals}");
+        var shop = new Btn("МАГАЗИН ▶", Pal.Violet, Pal.Paper, 14);
+        shop.Clicked += async (s, e) => await Push(new ShopPage());
+        Grid.SetRow(shop, 2);
+        Grid.SetColumn(shop, 1);
+        stats.Children.Add(shop);
         stack.Children.Add(stats);
 
         stack.Children.Add(Ui.Text($"ЦЕЛЬ ДНЯ: {p.DailyGoalMin} МИН (≈{AppState.DailyGoalXp} XP)", 12, Pal.Ink2, true));

@@ -255,6 +255,9 @@ public class QuestionnairePage : BasePage
         }, TextAlignment.Center));
 
         await SwapBody(Wrap(new ScrollView { Content = stack }));
+
+        int days = Streak.TakeCelebration();
+        if (days > 0) StreakBurst.Show(Root, days);
     }
 
     // в карточку для картинки — вывод и шкалы, подробности — ниже на экране

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using PsyPath.Models;
+using PsyPath.UI;
 
 namespace PsyPath.Services;
 
@@ -31,6 +32,8 @@ public static class AppState
         new("first", "Первый шаг", "Пройди первый урок"),
         new("streak3", "3 дня подряд", "Занимайся 3 дня подряд"),
         new("streak7", "7 дней подряд", "Занимайся 7 дней подряд"),
+        new("streak30", "30 дней подряд", "Занимайся 30 дней подряд"),
+        new("streak100", "100 дней подряд", "Занимайся 100 дней подряд"),
         new("perfect", "Без ошибок", "Пройди урок без единой ошибки"),
         new("ten", "10 уроков", "Пройди 10 уроков"),
         new("lv3", "3 уровень", "Достигни 3 уровня"),
@@ -53,6 +56,18 @@ public static class AppState
             try { P = JsonSerializer.Deserialize<ProgressData>(json, Opt) ?? new ProgressData(); }
             catch { P = new ProgressData(); }
         }
+        AdoptProgress();
+    }
+
+    // прогресс прочитан из телефона или пришёл с сервера: стартовые кристаллы и тема игрока
+    static void AdoptProgress()
+    {
+        if (!P.CrystalsStarted)
+        {
+            Crystals.GiveStartBonus();
+            Preferences.Default.Set("progress", JsonSerializer.Serialize(P));
+        }
+        Pal.Apply(Themes.Find(P.Theme));
     }
 
     public static async Task LoadContent()
@@ -133,6 +148,7 @@ public static class AppState
         pushDelay?.Cancel();
         Preferences.Default.Remove("progress");
         P = new ProgressData();
+        Pal.Apply(Themes.Find(P.Theme));
         Version++;
         Sync.Clear();
         Reminders.Update();
@@ -167,6 +183,7 @@ public static class AppState
         {
             P = server.Deserialize<ProgressData>(Opt) ?? new ProgressData();
             Preferences.Default.Set("progress", JsonSerializer.Serialize(P));
+            AdoptProgress();
             Version++;
         }
         else
@@ -295,6 +312,8 @@ public static class AppState
         Give("first", P.Done.Count >= 1);
         Give("streak3", P.Streak >= 3);
         Give("streak7", P.Streak >= 7);
+        Give("streak30", P.Streak >= 30);
+        Give("streak100", P.Streak >= 100);
         Give("perfect", P.PerfectLessons >= 1);
         Give("ten", P.Done.Count >= 10);
         Give("lv3", Level >= 3);
@@ -416,6 +435,10 @@ public static class AppState
 
     public static void SaveResult(Questionnaire q, QOutcome r)
     {
+        // кристалл за опросник — один раз в день: повторное прохождение подряд их не копит
+        string today = DateTime.Now.ToString("dd.MM.yyyy");
+        if (!P.History.Any(h => h.Id == q.Id && h.Date.StartsWith(today))) Crystals.Earn(Crystals.ForQuestionnaire);
+
         var item = new QHistoryItem
         {
             Id = q.Id,

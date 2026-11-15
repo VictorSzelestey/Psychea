@@ -6,7 +6,12 @@ namespace PsyPath.Views;
 // выбор аватарки: она видна в профиле и в топе игроков
 public class AvatarPage : AdminBase
 {
-    public AvatarPage() => Build();
+    // перестраивается при каждом показе: после магазина в списке появляются купленные
+    protected override void Refresh()
+    {
+        base.Refresh();
+        Build();
+    }
 
     void Build()
     {
@@ -25,7 +30,8 @@ public class AvatarPage : AdminBase
                 new ColumnDefinition(GridLength.Star)
             }
         };
-        var items = Avatars.All.Select(a => (a.Id, a.Name)).Prepend(("", "Без картинки")).ToList();
+        // бесплатные и купленные; остальные ждут в магазине
+        var items = Avatars.All.Where(a => Crystals.Owns(a.Id, a.Price)).Select(a => (a.Id, a.Name)).Prepend(("", "Без картинки")).ToList();
         for (int i = 0; i < items.Count; i++)
         {
             var (id, caption) = items[i];
@@ -51,6 +57,7 @@ public class AvatarPage : AdminBase
             grid.Children.Add(card);
         }
         s.Children.Add(grid);
+        s.Children.Add(Form.Link("ЕЩЁ АВАТАРКИ — В МАГАЗИНЕ ▶", Pal.TealInk, async () => await Push(new ShopPage()), TextAlignment.Center));
         Show("АВАТАРКА", s);
     }
 }

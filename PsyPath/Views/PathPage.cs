@@ -279,13 +279,15 @@ public class PathPage : DataPage
         int goal = AppState.DailyGoalXp;
         int today = AppState.TodayXp;
 
+        // три счётчика и две кнопки помещаются в 360 dp: отступы и промежутки уже, чем на других экранах
         var g = new Grid
         {
-            ColumnSpacing = 8,
-            Padding = new Thickness(18, 12, 18, 0),
+            ColumnSpacing = 6,
+            Padding = new Thickness(12, 12, 12, 0),
             ColumnDefinitions =
             {
                 new ColumnDefinition(new GridLength(52)),
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Star),
@@ -317,20 +319,32 @@ public class PathPage : DataPage
         Ui.OnTap(avatar, async () => await Push(new AvatarPage()));
         g.Children.Add(avatar);
 
-        var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 16, Icons.Flame, Pal.Orange, Pal.Yellow);
-        streak.Padding = new Thickness(16, 10);
+        // огонёк меняет цвет на рубежах серии: 10, 30, 50, 100 дней
+        var (flame, flameAccent) = StreakBurst.FlameColors(AppState.DisplayStreak);
+        var streak = Ui.Lcd(AppState.DisplayStreak.ToString(), 15, Icons.Flame, flame, flameAccent);
+        streak.Padding = new Thickness(8, 10);
         streak.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(streak, 1);
         g.Children.Add(streak);
 
-        var xp = Ui.Lcd(AppState.P.TotalXp.ToString(), 16, Icons.Brain, Pal.Violet, Pal.Amber);
-        xp.Padding = new Thickness(16, 10);
+        var xp = Ui.Lcd(Short(AppState.P.TotalXp), 15, Icons.Brain, Pal.Violet, Pal.Amber);
+        xp.Padding = new Thickness(8, 10);
         xp.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(xp, 2);
         g.Children.Add(xp);
 
+        // кристаллы: нажатие открывает магазин
+        var crystals = Ui.Lcd(Short(AppState.P.Crystals), 15, Icons.Crystal, Pal.Teal, Pal.Cyan);
+        crystals.Padding = new Thickness(8, 10);
+        crystals.VerticalOptions = LayoutOptions.Center;
+        AutomationProperties.SetIsInAccessibleTree(crystals, true);
+        SemanticProperties.SetDescription(crystals, $"Кристаллы: {AppState.P.Crystals}. Нажми, чтобы открыть магазин");
+        Ui.OnTap(crystals, async () => await Push(new ShopPage()));
+        Grid.SetColumn(crystals, 3);
+        g.Children.Add(crystals);
+
         var gear = IconButton(Icons.Gear, "Настройки", async () => await Push(new SettingsPage()));
-        Grid.SetColumn(gear, 4);
+        Grid.SetColumn(gear, 5);
         g.Children.Add(gear);
 
         var box = new VerticalStackLayout { Spacing = 4 };
@@ -346,6 +360,15 @@ public class PathPage : DataPage
         goalRow.Children.Add(new Bar(Pal.Orange) { Value = goal == 0 ? 0 : (double)today / goal });
         box.Children.Add(goalRow);
         return box;
+    }
+
+    // 12345 → 12K: пять цифр в верхней панели уже не помещаются рядом с тремя счётчиками,
+    // а при крупном тексте сокращаются уже четыре: 1840 → 1.8K
+    static string Short(int n)
+    {
+        int limit = Ui.Scale > 1 ? 1000 : 10000;
+        if (n < limit) return n.ToString();
+        return n < 10000 ? (n / 1000.0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "K" : $"{n / 1000}K";
     }
 
     // круглая кнопка-иконка: зона нажатия 48×48 dp, name — для экранного диктора

@@ -162,5 +162,8 @@ public class FlashcardsPage : AdminBase
         back.Clicked += async (o, e) => await Pop();
         s.Children.Add(back);
         Show("КАРТОЧКИ", s);
+
+        int days = Streak.TakeCelebration();
+        if (days > 0) StreakBurst.Show(Root, days);
     }
 }

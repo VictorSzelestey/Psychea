@@ -2,18 +2,25 @@ using Microsoft.Maui.Controls.Shapes;
 
 namespace PsyPath.UI;
 
-// аватарки игрока: три кота и животные темпераментов в спокойной позе. Картинка — Resources/Images/ava_<id>.png
+// аватарки игрока: три кота, животные темпераментов в спокойной позе и платные из магазина (Price > 0).
+// Картинка — Resources/Images/ava_<id>.png. Все id остаются в списке: топ показывает чужие купленные аватарки
 public static class Avatars
 {
-    public static readonly (string Id, string Name)[] All =
+    public static readonly (string Id, string Name, int Price)[] All =
     {
-        ("cat_santa", "Кот с подарком"),
-        ("cat_wizard", "Кот-волшебник"),
-        ("cat_peek", "Любопытный кот"),
-        ("monkey", "Обезьяна — сангвиник"),
-        ("bull", "Бык — холерик"),
-        ("elephant", "Слон — флегматик"),
-        ("rabbit", "Заяц — меланхолик")
+        ("cat_santa", "Кот с подарком", 0),
+        ("cat_wizard", "Кот-волшебник", 0),
+        ("cat_peek", "Любопытный кот", 0),
+        ("monkey", "Обезьяна — сангвиник", 0),
+        ("bull", "Бык — холерик", 0),
+        ("elephant", "Слон — флегматик", 0),
+        ("rabbit", "Заяц — меланхолик", 0),
+        ("owl", "Сова-мудрец", 100),
+        ("manul_scholar", "Манул-психолог", 150),
+        ("cat_dream", "Кот-сновидец", 150),
+        ("raccoon", "Енот-детектив", 200),
+        ("fox_zen", "Лис на медитации", 200),
+        ("cat_king", "Кот-король", 300)
     };
 
     public static bool Exists(string? id) => All.Any(a => a.Id == id);

@@ -849,9 +849,16 @@ public class LessonPage : BasePage
         var p = AppState.P;
         AppState.AddXp(xpGained);
         AppState.RegisterActivity();
+        // кристаллы — только за первое прохождение урока: повтор их не копит
+        int crystals = 0;
         if (lesson != null)
         {
-            if (!p.Done.Contains(lesson.Id)) p.Done.Add(lesson.Id);
+            if (!p.Done.Contains(lesson.Id))
+            {
+                p.Done.Add(lesson.Id);
+                crystals = Crystals.ForLesson + (mistakes == 0 ? Crystals.ForPerfect : 0);
+                Crystals.Earn(crystals);
+            }
             if (mistakes == 0) p.PerfectLessons++;
         }
         var newAch = AppState.CheckAchievements();
@@ -901,6 +908,14 @@ public class LessonPage : BasePage
         card.Children.Add(Ui.Text("ПСИХЕЯ // ТРЕНАЖЁР ПСИХОЛОГА", 10, Pal.Ink2, true, TextAlignment.Center));
         stack.Children.Add(card);
 
+        if (crystals > 0)
+        {
+            var gained = Ui.Lcd($"+{crystals} {Crystals.Word(crystals).ToUpperInvariant()}", 14, Icons.Crystal, Pal.Teal, Pal.Cyan);
+            gained.HorizontalOptions = LayoutOptions.Center;
+            gained.Padding = new Thickness(16, 8);
+            stack.Children.Add(gained);
+        }
+
         if (lesson == null)
         {
             int left = Practice.MistakeCount;
@@ -939,6 +954,14 @@ public class LessonPage : BasePage
 
         await SwapBody(new ScrollView { Content = stack });
         Confetti();
+
+        // первое занятие дня поставило серию на рубеж: заставка поверх конфетти
+        int days = Streak.TakeCelebration();
+        if (days > 0)
+        {
+            await Task.Delay(700);
+            StreakBurst.Show(Root, days);
+        }
     }
 
     void Confetti()
