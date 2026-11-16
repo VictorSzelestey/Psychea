@@ -148,8 +148,169 @@ class BackdropDrawable : IDrawable
             canvas.FillRoundedRectangle(-20, h * 0.48f, w * 0.34f, 34, 17);
         }
 
-        Mountains(canvas, w, h, h * 0.74f);
+        float top = h * 0.74f;
+        switch (Pal.Scene)
+        {
+            case "jungle":
+                Jungle(canvas, w, h, top);
+                break;
+            case "astral":
+                Temple(canvas, w, h, top);
+                break;
+            default:
+                Mountains(canvas, w, h, top);
+                if (Pal.Scene == "crystal") Crystals(canvas, w, top);
+                if (Pal.Scene == "night") Waterfall(canvas, w, top);
+                break;
+        }
         Hill(canvas, w, h, h * 0.86f, Pal.Hill);
+    }
+
+    // пейзажи островов — в тонах фона, без ярких цветов: они не спорят с карточками
+
+    // Остров разума: у подножия гор пара кристаллов, тёмная грань и светлая
+    static void Crystals(ICanvas canvas, float w, float top)
+    {
+        var dark = Pal.HillFar.AddLuminosity(-0.07f);
+        var light = Pal.Hill.AddLuminosity(0.03f);
+        Shard(canvas, w * 0.31f, top + 56, 13, 58, -10, dark, light);
+        Shard(canvas, w * 0.36f, top + 58, 9, 36, 14, dark, light);
+        Shard(canvas, w * 0.74f, top + 52, 11, 46, 8, dark, light);
+        Shard(canvas, w * 0.69f, top + 54, 7, 26, -16, dark, light);
+    }
+
+    static void Shard(ICanvas canvas, float x, float y, float halfW, float height, float angle, Color body, Color face)
+    {
+        canvas.SaveState();
+        canvas.Translate(x, y);
+        canvas.Rotate(angle);
+        var p = new PathF();
+        p.MoveTo(-halfW, 0);
+        p.LineTo(-halfW, -height * 0.62f);
+        p.LineTo(0, -height);
+        p.LineTo(halfW, -height * 0.62f);
+        p.LineTo(halfW, 0);
+        p.Close();
+        canvas.FillColor = body;
+        canvas.FillPath(p);
+        var f = new PathF();
+        f.MoveTo(-halfW, 0);
+        f.LineTo(-halfW, -height * 0.62f);
+        f.LineTo(0, -height);
+        f.LineTo(-halfW * 0.1f, 0);
+        f.Close();
+        canvas.FillColor = face;
+        canvas.FillPath(f);
+        canvas.RestoreState();
+    }
+
+    // Джунгли психики: вместо гор — кроны деревьев и пальмы
+    static void Jungle(ICanvas canvas, float w, float h, float top)
+    {
+        var tree = Pal.HillFar;
+        var trunk = Pal.HillFar.AddLuminosity(-0.08f);
+        var ground = new PathF();
+        ground.MoveTo(0, h);
+        ground.LineTo(0, top + 40);
+        ground.CurveTo(w * 0.3f, top + 20, w * 0.6f, top + 50, w, top + 30);
+        ground.LineTo(w, h);
+        ground.Close();
+        canvas.FillColor = tree;
+        canvas.FillPath(ground);
+
+        (float X, float Size, bool Palm)[] trees =
+        {
+            (0.03f, 1.0f, false), (0.17f, 0.8f, true), (0.31f, 1.15f, false), (0.47f, 0.75f, false),
+            (0.6f, 1.0f, true), (0.76f, 1.2f, false), (0.92f, 0.85f, true)
+        };
+        foreach (var t in trees)
+        {
+            float x = w * t.X, baseY = top + 42, s = t.Size;
+            if (t.Palm)
+            {
+                Palm(canvas, x, baseY, s, tree, trunk);
+                continue;
+            }
+            canvas.FillColor = trunk;
+            canvas.FillRectangle(x - 4 * s, baseY - 44 * s, 8 * s, 46 * s);
+            canvas.FillColor = tree;
+            canvas.FillCircle(x, baseY - 62 * s, 30 * s);
+            canvas.FillCircle(x - 24 * s, baseY - 48 * s, 22 * s);
+            canvas.FillCircle(x + 24 * s, baseY - 50 * s, 24 * s);
+            // свисающая лиана
+            canvas.StrokeColor = trunk;
+            canvas.StrokeSize = 2;
+            canvas.DrawLine(x + 16 * s, baseY - 40 * s, x + 18 * s, baseY - 14 * s);
+        }
+    }
+
+    // пальма: изогнутый ствол и веер листьев
+    static void Palm(ICanvas canvas, float x, float baseY, float s, Color leaf, Color trunk)
+    {
+        float topX = x + 14 * s, topY = baseY - 78 * s;
+        canvas.StrokeColor = trunk;
+        canvas.StrokeSize = 6 * s;
+        canvas.StrokeLineCap = LineCap.Round;
+        var stem = new PathF();
+        stem.MoveTo(x, baseY);
+        stem.QuadTo(x - 4 * s, baseY - 44 * s, topX, topY);
+        canvas.DrawPath(stem);
+        canvas.FillColor = leaf;
+        foreach (float a in new[] { -170f, -135f, -95f, -55f, -15f })
+        {
+            canvas.SaveState();
+            canvas.Translate(topX, topY);
+            canvas.Rotate(a);
+            float len = 40 * s;
+            var p = new PathF();
+            p.MoveTo(0, 0);
+            p.CurveTo(len * 0.3f, -len * 0.3f, len * 0.8f, -len * 0.15f, len, len * 0.25f);
+            p.CurveTo(len * 0.7f, len * 0.05f, len * 0.3f, len * 0.12f, 0, 0);
+            canvas.FillPath(p);
+            canvas.RestoreState();
+        }
+    }
+
+    // Остров ночи: с большой вершины падает водопад
+    static void Waterfall(ICanvas canvas, float w, float top)
+    {
+        float x = w * 0.53f;
+        canvas.FillColor = Pal.Gray.WithAlpha(0.45f);
+        canvas.FillRoundedRectangle(x - 7, top - 20, 14, 86, 6);
+        canvas.StrokeColor = Pal.Ink2.WithAlpha(0.35f);
+        canvas.StrokeSize = 1.5f;
+        canvas.DrawLine(x - 2, top - 14, x - 2, top + 60);
+        canvas.DrawLine(x + 3, top - 4, x + 3, top + 52);
+        canvas.FillColor = Pal.Gray.WithAlpha(0.35f);
+        canvas.FillEllipse(x - 22, top + 58, 44, 14);
+    }
+
+    // Астрал: облачная гряда и храм с колоннами
+    static void Temple(ICanvas canvas, float w, float h, float top)
+    {
+        canvas.FillColor = Pal.HillFar;
+        for (int i = 0; i <= 8; i++)
+            canvas.FillCircle(w * i / 8f, top + 40 + (i % 2) * 10, 34);
+        canvas.FillRectangle(0, top + 40, w, h - top);
+
+        canvas.FillColor = Pal.HillFar.AddLuminosity(-0.07f);
+        float left = w * 0.6f, right = w * 0.92f, floor = top + 20, colH = 62;
+        canvas.FillRectangle(left - 8, floor, right - left + 16, 8);
+        for (int i = 0; i < 4; i++)
+        {
+            float cx = left + (right - left) * i / 3f;
+            canvas.FillRectangle(cx - 5, floor - colH, 10, colH);
+        }
+        canvas.FillRectangle(left - 8, floor - colH - 8, right - left + 16, 8);
+        var roof = new PathF();
+        roof.MoveTo(left - 10, floor - colH - 8);
+        roof.LineTo((left + right) / 2, floor - colH - 30);
+        roof.LineTo(right + 10, floor - colH - 8);
+        roof.Close();
+        canvas.FillPath(roof);
+        // две одинокие колонны слева
+        canvas.FillRectangle(w * 0.12f - 5, floor - 46, 10, 48);
+        canvas.FillRectangle(w * 0.2f - 5, floor - 34, 10, 36);
     }
 
     // тема «Космос»: звёзды, планета с кольцом и луна вместо облаков.

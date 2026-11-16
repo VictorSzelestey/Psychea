@@ -31,7 +31,7 @@ public class IslandMap : ContentView
             bool showLocked = !open || !AppState.P.IslandsShown.Contains(island.Number) && island.Number > 1;
 
             var gray = new Image { Source = $"island_{island.Image}_gray.png", Aspect = Aspect.Fill, InputTransparent = true, Opacity = showLocked ? 1 : 0 };
-            layer.Children.Add(Place(gray, island.GrayBox ?? island.Box));
+            layer.Children.Add(Place(gray, island.Box));
 
             var caption = Ui.Text(Caption(island, !showLocked), 10, Pal.Ink, true, TextAlignment.Center);
             var pill = new Border

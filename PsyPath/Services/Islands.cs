@@ -5,10 +5,8 @@ namespace PsyPath.Services;
 
 // остров на главной: разделы уроков, тема и картинка. Number — порядок открытия.
 // Image — картинки island_<Image>.png и island_<Image>_gray.png, Box — где остров на карте (доли её стороны),
-// Decor — чем украшены кружки уроков на острове. Soon — остров показан, но пока закрыт для всех.
-// GrayBox — где серая копия, если она шире острова (у Астрала она накрывает и сияние вокруг)
-public record Island(int Number, string Name, string Image, int[] Sections, string Theme, Rect Box, string Decor,
-    bool Soon = false, Rect? GrayBox = null);
+// Decor — чем украшены кружки уроков на острове. Soon — остров показан, но пока закрыт для всех
+public record Island(int Number, string Name, string Image, int[] Sections, string Theme, Rect Box, string Decor, bool Soon = false);
 
 // четыре острова вместо общего списка разделов: открыт первый, следующий — когда пройдены все уроки предыдущего.
 // Открытый остров не закрывается, даже если рейтинг упал, и открывает свою тему в магазине
@@ -19,8 +17,7 @@ public static class Islands
         new(1, "Остров разума", "reason", new[] { 1, 2 }, "lilac", new Rect(0.034, 0.014, 0.437, 0.41), "crystal"),
         new(2, "Джунгли психики", "jungle", new[] { 13, 14 }, "jungle", new Rect(0.523, 0.01, 0.452, 0.404), "vine"),
         new(3, "Остров ночи", "night", new[] { 15, 16 }, "cosmo", new Rect(0.024, 0.477, 0.464, 0.481), "star"),
-        new(4, "Астрал", "astral", Array.Empty<int>(), "astral", new Rect(0.548, 0.506, 0.427, 0.443), "gold", Soon: true,
-            GrayBox: new Rect(0.518, 0.476, 0.482, 0.503))
+        new(4, "Астрал", "astral", Array.Empty<int>(), "astral", new Rect(0.548, 0.506, 0.427, 0.443), "gold", Soon: true)
     };
 
     // манул в лодке посередине карты

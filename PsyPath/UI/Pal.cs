@@ -47,6 +47,8 @@ public static class Pal
     public static bool Dark { get; private set; }
     // тема «Космос»: на фоне звёзды и планета вместо облаков
     public static bool Space { get; private set; }
+    // пейзаж острова на фоне (Theme.Scene)
+    public static string? Scene { get; private set; }
 
     public static Color Cycle(int i)
     {
@@ -71,6 +73,7 @@ public static class Pal
         Gray = t.Gray;
         Dark = t.Dark;
         Space = t.Space;
+        Scene = t.Scene;
         OnAccent = t.OnAccent ?? t.Paper;
         GreenSoft = t.GreenSoft ?? Color.FromArgb("#CFEFD9");
         RedSoft = t.RedSoft ?? Color.FromArgb("#FAD3DF");
