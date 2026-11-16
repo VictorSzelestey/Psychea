@@ -68,6 +68,7 @@ public class AdminPage : AdminBase
         promo.Clicked += async (_, _) => await Push(new AdminPromoPage());
         stack.Children.Add(promo);
         stack.Children.Add(CrystalsCard());
+        stack.Children.Add(IslandsCard());
         stack.Children.Add(ContentLinks());
 
         var lessons = new VerticalStackLayout { Spacing = 8 };
@@ -132,6 +133,32 @@ public class AdminPage : AdminBase
         }
         box.Children.Add(row);
         box.Children.Add(Ui.Text("Начисляются на этот аккаунт и уходят на сервер вместе с прогрессом.", 11, Pal.Ink2));
+        return Ui.Card(box, Pal.Paper, 12);
+    }
+
+    // острова себе без прохождения уроков: проверить остров, его тему и падение замка. Астрал не открывается
+    View IslandsCard()
+    {
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text("ОСТРОВА АДМИНУ", 12, Pal.RedInk, true));
+        foreach (var island in Islands.All.Where(i => i.Number > 1 && !i.Soon))
+        {
+            bool open = Islands.IsOpen(island);
+            var btn = new Btn(open ? $"✓ {island.Name} открыт" : $"ОТКРЫТЬ «{island.Name}»", open ? Pal.Paper2 : Pal.Violet, open ? Pal.Ink2 : Pal.OnAccent, 14);
+            btn.Enabled = !open;
+            var target = island;
+            btn.Clicked += (_, _) =>
+            {
+                if (Api.User?.IsAdmin != true || Islands.IsOpen(target)) return;
+                Islands.OpenByAdmin(target);
+                Sound.Play("win");
+                btn.Text = $"✓ {target.Name} открыт";
+                btn.SetColors(Pal.Paper2, Pal.Ink2);
+                btn.Enabled = false;
+            };
+            box.Children.Add(btn);
+        }
+        box.Children.Add(Ui.Text("Замок упадёт на карте при следующем показе главной. Тема острова откроется в магазине.", 11, Pal.Ink2));
         return Ui.Card(box, Pal.Paper, 12);
     }
 

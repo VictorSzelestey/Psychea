@@ -10,6 +10,11 @@ public class IslandMap : ContentView
 {
     readonly AbsoluteLayout layer = new();
     readonly Dictionary<int, (Image Gray, View Lock, Label Caption)> locked = new();
+    readonly Dictionary<int, (Border Pill, Label Caption)> pills = new();
+    static readonly Color PillInk = Color.FromArgb("#4A2E4F");
+    static readonly Color PillFill = Color.FromArgb("#FFFBFD").WithAlpha(0.92f);
+    static readonly Color PillPicked = Color.FromArgb("#6E4BA6");
+    bool picking;
     readonly Image boat;
     bool revealing;
 
@@ -26,40 +31,45 @@ public class IslandMap : ContentView
             bool showLocked = !open || !AppState.P.IslandsShown.Contains(island.Number) && island.Number > 1;
 
             var gray = new Image { Source = $"island_{island.Image}_gray.png", Aspect = Aspect.Fill, InputTransparent = true, Opacity = showLocked ? 1 : 0 };
-            layer.Children.Add(Place(gray, island.Box));
+            layer.Children.Add(Place(gray, island.GrayBox ?? island.Box));
 
             var caption = Ui.Text(Caption(island, !showLocked), 10, Pal.Ink, true, TextAlignment.Center);
             var pill = new Border
             {
                 Content = caption,
-                BackgroundColor = Color.FromArgb("#FFFBFD").WithAlpha(0.92f),
+                BackgroundColor = PillFill,
                 Stroke = new SolidColorBrush(Color.FromArgb("#E9C9D6")),
                 StrokeThickness = 1,
                 StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(10) },
                 Padding = new Thickness(8, 3),
                 HorizontalOptions = LayoutOptions.Center,
-                VerticalOptions = LayoutOptions.End,
-                InputTransparent = true
+                VerticalOptions = LayoutOptions.End
             };
             // подпись внизу острова; цвета свои, а не темы: карта всегда на светлой воде
-            caption.TextColor = Color.FromArgb("#4A2E4F");
+            caption.TextColor = PillInk;
+            pills[island.Number] = (pill, caption);
             var box = island.Box;
-            var pillHost = new Grid { InputTransparent = true };
-            pillHost.Children.Add(pill);
-            layer.Children.Add(Place(pillHost, new Rect(box.X, box.Y, box.Width, box.Height)));
-
-            var lockBadge = LockBadge(island.Soon);
-            lockBadge.Opacity = showLocked ? 1 : 0;
-            layer.Children.Add(Place(lockBadge, Center(box, 0.2)));
-
-            if (showLocked) locked[island.Number] = (gray, lockBadge, caption);
+            var target = island;
 
             var hit = new BoxView { Color = Colors.Transparent };
             SemanticProperties.SetDescription(hit, island.Name + (open ? ", открыт" : ", закрыт"));
             AutomationProperties.SetIsInAccessibleTree(hit, true);
-            var target = island;
             Ui.OnTap(hit, () => Tap(target));
             layer.Children.Add(Place(hit, Inset(box, 0.12)));
+
+            // подпись тоже выбирает остров: на неё нажимают чаще, чем на картинку
+            var pillHost = new Grid { CascadeInputTransparent = false, InputTransparent = true };
+            pillHost.Children.Add(pill);
+            Ui.OnTap(pill, () => Tap(target));
+            layer.Children.Add(Place(pillHost, new Rect(box.X, box.Y, box.Width, box.Height)));
+
+            // замок есть только у закрытого острова: у прозрачного осталась бы его тень
+            if (showLocked)
+            {
+                var lockBadge = LockBadge(island.Soon);
+                layer.Children.Add(Place(lockBadge, Center(box, 0.2)));
+                locked[island.Number] = (gray, lockBadge, caption);
+            }
         }
 
         boat = new Image { Source = "map_manul.png", Aspect = Aspect.Fill };
@@ -150,6 +160,22 @@ public class IslandMap : ContentView
             Float(prev != null ? $"Пройди «{prev.Name}», чтобы открыть" : "Пока закрыто", island.Box);
             return;
         }
+        _ = Pick(island);
+    }
+
+    // выбранный остров: подпись загорается и подпрыгивает, потом облака
+    async Task Pick(Island island)
+    {
+        if (picking) return;
+        picking = true;
+        if (pills.TryGetValue(island.Number, out var p))
+        {
+            p.Pill.BackgroundColor = PillPicked;
+            p.Pill.Stroke = new SolidColorBrush(Color.FromArgb("#FFFFFF"));
+            p.Caption.TextColor = Color.FromArgb("#FFFFFF");
+            await p.Pill.Zoom(1.15, 140, Easing.CubicOut);
+            await p.Pill.Zoom(1.05, 160, Easing.CubicIn);
+        }
         Opened?.Invoke(island);
     }
 
@@ -205,6 +231,8 @@ public class IslandMap : ContentView
                     l.Lock.Fade(0, 620));
                 var color = l.Gray.Fade(0, 1100);
                 await Task.WhenAll(fall, color);
+                // упавший замок убирается целиком: у прозрачного осталась бы тень
+                l.Lock.IsVisible = false;
                 l.Caption.Text = Caption(island, true);
                 var theme = Islands.ThemeOf(island);
                 Float($"Открыто: {island.Name}! Тема «{theme.Name}» — в магазине", island.Box);
