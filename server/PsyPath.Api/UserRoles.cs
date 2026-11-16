@@ -5,12 +5,13 @@ using Npgsql;
 namespace PsyPath.Api;
 
 public record AccountAccess(string Role, bool IsBlocked);
-public enum ManagerChange { Updated, NotFound, Administrator }
+public enum RoleChange { Updated, NotFound, Administrator }
 
 public interface IUserRoles
 {
     Task<AccountAccess?> Find(long id, CancellationToken cancel);
-    Task<ManagerChange> SetManager(long id, bool manager, CancellationToken cancel);
+    // role: user, manager или admin. Роль уже назначенного администратора не меняется
+    Task<RoleChange> SetRole(long id, string role, CancellationToken cancel);
 }
 
 public sealed class DbUserRoles(NpgsqlDataSource db) : IUserRoles
@@ -23,17 +24,18 @@ public sealed class DbUserRoles(NpgsqlDataSource db) : IUserRoles
         return await r.ReadAsync(cancel) ? new AccountAccess(r.GetString(0), r.GetBoolean(1)) : null;
     }
 
-    public async Task<ManagerChange> SetManager(long id, bool manager, CancellationToken cancel)
+    public async Task<RoleChange> SetRole(long id, string role, CancellationToken cancel)
     {
-        // Одним UPDATE: даже при одновременных запросах роль администратора не меняется.
+        // Одним UPDATE: даже при одновременных запросах роль администратора не меняется —
+        // назначить админа можно, снять или понизить — нет.
         await using var cmd = db.CreateCommand("""
             update psypath.users set role = $2
             where id = $1 and role in ('user', 'manager') returning id
             """);
         cmd.Parameters.AddWithValue(id);
-        cmd.Parameters.AddWithValue(manager ? "manager" : "user");
-        if (await cmd.ExecuteScalarAsync(cancel) != null) return ManagerChange.Updated;
-        return await Find(id, cancel) == null ? ManagerChange.NotFound : ManagerChange.Administrator;
+        cmd.Parameters.AddWithValue(role);
+        if (await cmd.ExecuteScalarAsync(cancel) != null) return RoleChange.Updated;
+        return await Find(id, cancel) == null ? RoleChange.NotFound : RoleChange.Administrator;
     }
 }
 

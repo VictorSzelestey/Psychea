@@ -4,7 +4,7 @@ namespace PsyPath.UI;
 public class Intro : VerticalStackLayout
 {
     readonly Image logo;
-    readonly View title;
+    readonly Label title;
 
     public Intro()
     {
@@ -12,8 +12,13 @@ public class Intro : VerticalStackLayout
         VerticalOptions = LayoutOptions.Center;
         HorizontalOptions = LayoutOptions.Center;
 
-        logo = new Image { Source = "appiconfg.png", WidthRequest = 200, HeightRequest = 200, HorizontalOptions = LayoutOptions.Center };
-        title = new Heading("ПСИХЕЯ", 38) { HorizontalOptions = LayoutOptions.Center };
+        logo = new Image { Source = "logo_psi.png", WidthRequest = 200, HeightRequest = 200, HorizontalOptions = LayoutOptions.Center };
+        // раньше здесь был Heading — это Grid со «звёздной» колонкой, которая растягивается
+        // на всю ширину экрана даже при HorizontalOptions = Center, из-за чего текст внутри
+        // (он выровнен по левому краю) уезжал влево. Обычный Label с центрированием текста
+        // и центрированием самого Label — без этого бага.
+        title = Ui.Text("ПСИХЕЯ", 38, Pal.Ink, true, TextAlignment.Center);
+        title.HorizontalOptions = LayoutOptions.Center;
 
         Children.Add(logo);
         Children.Add(title);

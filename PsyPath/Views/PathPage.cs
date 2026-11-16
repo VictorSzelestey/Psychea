@@ -389,7 +389,10 @@ public class PathPage : DataPage
             SemanticProperties.SetDescription(row, done ? $"{t.Title}: выполнено" : $"{t.Title}: {have} из {t.Goal}, награда {t.Reward} {Crystals.Word(t.Reward)}");
             box.Children.Add(row);
         }
-        return Ui.Card(box, Pal.Paper, 14);
+        var card = Ui.Card(box, Pal.Paper, 14);
+        // манул в карточке «Начать урок» свисает ниже неё на 14 — без доп. отступа задания дня к нему прилипали
+        card.Margin = new Thickness(0, 12, 0, 0);
+        return card;
     }
 
     // 12345 → 12K: пять цифр в верхней панели уже не помещаются рядом с тремя счётчиками,

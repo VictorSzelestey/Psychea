@@ -1,33 +1,33 @@
+using PsyPath.UI;
+
 namespace PsyPath.Services;
 
-// фоновая музыка: Resources/Raw/music_menu.mp3 по кругу. Вкл/выкл, громкость
-// и тишина в опросниках и карточках — в настройках
+// фоновая музыка: Resources/Raw/music_menu.mp3 по кругу, у темы со своей музыкой («Космос») — её трек.
+// Вкл/выкл, громкость и тишина в опросниках и карточках — в настройках, они общие для всех треков
 public static class Music
 {
     public enum Zone { Menu, Quiz, Cards }
 
+    const string DefaultTrack = "music_menu.mp3";
+
     static Zone zone = Zone.Menu;
     static bool ready;
     static bool asleep;
+    // какой трек сейчас загружен в плеер
+    static string loaded = "";
 
-    // MediaPlayer, как и SoundPool, читает файл с диска, поэтому трек один раз копируется из APK в кэш
+    // трек текущей темы
+    static string Track => Themes.Find(AppState.P.Theme).Music ?? DefaultTrack;
+
     public static async Task Init()
     {
 #if ANDROID
         if (ready) return;
         try
         {
-            string path = Path.Combine(FileSystem.CacheDirectory, $"music_menu_{AppInfo.Current.BuildString}.mp3");
-            if (!File.Exists(path))
-            {
-                // недокачанная копия не должна остаться под рабочим именем
-                string part = path + ".part";
-                await using (var src = await FileSystem.OpenAppPackageFileAsync("music_menu.mp3"))
-                await using (var dst = File.Create(part))
-                    await src.CopyToAsync(dst);
-                File.Move(part, path, true);
-            }
-            Droid.Bgm.Load(path);
+            string track = Track;
+            Droid.Bgm.Load(await Cached(track));
+            loaded = track;
             ready = true;
             Apply();
         }
@@ -40,6 +40,44 @@ public static class Music
         await Task.CompletedTask;
 #endif
     }
+
+    // тема сменилась (магазин, вход, выход): у темы может быть своя музыка
+    public static async Task UseTheme()
+    {
+#if ANDROID
+        if (!ready) return;
+        string track = Track;
+        if (track == loaded) return;
+        try
+        {
+            loaded = track;
+            Droid.Bgm.Switch(await Cached(track));
+            Apply();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("Music", ex);
+        }
+#else
+        await Task.CompletedTask;
+#endif
+    }
+
+#if ANDROID
+    // MediaPlayer, как и SoundPool, читает файл с диска, поэтому трек один раз копируется из APK в кэш
+    static async Task<string> Cached(string track)
+    {
+        string path = Path.Combine(FileSystem.CacheDirectory, $"{Path.GetFileNameWithoutExtension(track)}_{AppInfo.Current.BuildString}.mp3");
+        if (File.Exists(path)) return path;
+        // недокачанная копия не должна остаться под рабочим именем
+        string part = path + ".part";
+        await using (var src = await FileSystem.OpenAppPackageFileAsync(track))
+        await using (var dst = File.Create(part))
+            await src.CopyToAsync(dst);
+        File.Move(part, path, true);
+        return path;
+    }
+#endif
 
     // открылся экран: в опросниках и карточках музыка молчит, если так выбрано в настройках
     public static void Enter(Zone next)

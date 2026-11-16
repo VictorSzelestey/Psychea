@@ -2,12 +2,13 @@ namespace PsyPath.UI;
 
 // тема из магазина: перекрашивает фон, карточки, текст и главную кнопку.
 // Контраст каждой проверен: текст Ink на Paper, Bg и Accent — не ниже 6.7, надпись OnAccent на Primary — не ниже 5.2 (WCAG AA).
-// Хвостовые цвета задаёт только тёмная тема; у светлых они общие (см. Pal.Apply)
+// Хвостовые цвета задают только тёмные темы; у светлых они общие (см. Pal.Apply).
+// Music — своя фоновая музыка темы из Resources/Raw, Space — звёзды и планета вместо облаков на фоне
 public record Theme(string Id, string Name, int Price,
     Color Bg, Color Hill, Color HillFar, Color Paper, Color Paper2, Color Line,
     Color Ink, Color Ink2, Color Primary, Color Accent, Color Link, Color Gray,
     bool Dark = false, Color? OnAccent = null, Color? GreenSoft = null, Color? RedSoft = null,
-    Color? RedInk = null, Color? GreenInk = null);
+    Color? RedInk = null, Color? GreenInk = null, string? Music = null, bool Space = false);
 
 public static class Themes
 {
@@ -36,6 +37,12 @@ public static class Themes
             C("#EDE6FA"), C("#BFB3D9"), C("#B79CF0"), C("#4B3B78"), C("#C7B2F7"), C("#8A7DA6"),
             Dark: true, OnAccent: C("#1B1530"), GreenSoft: C("#1F3D2E"), RedSoft: C("#4A2333"),
             RedInk: C("#F59DBA"), GreenInk: C("#8FD9AE")),
+        // тёмно-синий космос: звёзды на фоне и своя музыка в меню. Контраст: Ink на Paper 12.9, на Accent 6.9, OnAccent на Primary 8.7
+        new("cosmo", "Космос", 100,
+            C("#0E1430"), C("#2B3570"), C("#1A2150"), C("#1C2347"), C("#252D57"), C("#38427A"),
+            C("#E8ECFF"), C("#AEB8E6"), C("#8FB4FF"), C("#3A4A94"), C("#9CC2FF"), C("#7480B8"),
+            Dark: true, OnAccent: C("#0E1430"), GreenSoft: C("#173B37"), RedSoft: C("#47213A"),
+            RedInk: C("#FF9FC4"), GreenInk: C("#86E0C0"), Music: "music_cosmo.mp3", Space: true),
     };
 
     // неизвестная или пустая тема — сиреневая

@@ -59,8 +59,13 @@ public class LoadingPage : BasePage
         }
 
         await played;
-        // без затухания: заставка видна, пока строится следующий экран, иначе мелькает пустое окно
-        await SwitchRoot(Api.LoggedIn ? Start.Home() : new NavigationPage(new LoginPage()), fade: false);
+        // следующий экран строится, пока заставка ещё видна, иначе мелькает пустое окно.
+        // Потом интро плавно «отпускает» экран: лёгкое затухание и едва заметное сужение.
+        // fade: false у SwitchRoot — чтобы поверх не наложилось ещё одно, системное гашение
+        var next = Api.LoggedIn ? Start.Home() : new NavigationPage(new LoginPage());
+        if (Content is View v)
+            await Task.WhenAll(v.Fade(0, 260), v.Zoom(0.96, 260, Easing.CubicIn));
+        await SwitchRoot(next, fade: false);
         _ = Start.OfferUpdate();
     }
 }

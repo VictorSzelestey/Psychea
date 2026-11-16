@@ -83,6 +83,34 @@ public static class Bgm
         }
     }
 
+    // другой трек (своя музыка темы): новый плеер с начала трека. Играть или молчать и громкость —
+    // как просили в последний раз; новый трек проявляется плавно
+    public static void Switch(string path)
+    {
+        if (player == null)
+        {
+            Load(path);
+            return;
+        }
+        if (source == path) return;
+        source = path;
+        var old = player;
+        player = null;
+        fadeId++;
+        try { old.Release(); } catch (Exception) { }
+
+        try
+        {
+            player = Create(path);
+            current = 0;
+            Set(wantPlay, wantVolume);
+        }
+        catch (Exception ex)
+        {
+            Services.CrashLog.Write("Music", ex);
+        }
+    }
+
     // новый плеер с той же позиции; старый освобождается, идущее затухание отменяется
     static void Restart()
     {

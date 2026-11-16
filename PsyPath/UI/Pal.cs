@@ -45,6 +45,8 @@ public static class Pal
     // Один цвет не может быть и читаемым текстом на тёмном фоне, и фоном под светлым текстом
     public static Color OnAccent { get; private set; } = Color.FromArgb("#FBF5F3");
     public static bool Dark { get; private set; }
+    // тема «Космос»: на фоне звёзды и планета вместо облаков
+    public static bool Space { get; private set; }
 
     public static Color Cycle(int i)
     {
@@ -68,6 +70,7 @@ public static class Pal
         TealInk = t.Link;
         Gray = t.Gray;
         Dark = t.Dark;
+        Space = t.Space;
         OnAccent = t.OnAccent ?? t.Paper;
         GreenSoft = t.GreenSoft ?? Color.FromArgb("#CFEFD9");
         RedSoft = t.RedSoft ?? Color.FromArgb("#FAD3DF");

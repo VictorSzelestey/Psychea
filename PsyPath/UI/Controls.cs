@@ -135,16 +135,50 @@ class BackdropDrawable : IDrawable
     {
         float w = rect.Width, h = rect.Height;
 
-        canvas.FillColor = Pal.Hill;
-        canvas.FillCircle(w * 0.84f, 70, 54);
-        canvas.FillCircle(w * 0.62f, 90, 36);
-        canvas.FillCircle(w, 100, 46);
-        canvas.FillCircle(-6, h * 0.46f, 44);
-        canvas.FillCircle(w * 0.14f, h * 0.48f, 30);
-        canvas.FillRoundedRectangle(-20, h * 0.48f, w * 0.34f, 34, 17);
+        if (Pal.Space)
+            Sky(canvas, w, h);
+        else
+        {
+            canvas.FillColor = Pal.Hill;
+            canvas.FillCircle(w * 0.84f, 70, 54);
+            canvas.FillCircle(w * 0.62f, 90, 36);
+            canvas.FillCircle(w, 100, 46);
+            canvas.FillCircle(-6, h * 0.46f, 44);
+            canvas.FillCircle(w * 0.14f, h * 0.48f, 30);
+            canvas.FillRoundedRectangle(-20, h * 0.48f, w * 0.34f, 34, 17);
+        }
 
         Mountains(canvas, w, h, h * 0.74f);
         Hill(canvas, w, h, h * 0.86f, Pal.Hill);
+    }
+
+    // тема «Космос»: звёзды, планета с кольцом и луна вместо облаков.
+    // Зерно постоянное — звёзды на всех экранах стоят на одних и тех же местах
+    static void Sky(ICanvas canvas, float w, float h)
+    {
+        var rnd = new Random(7);
+        for (int i = 0; i < 70; i++)
+        {
+            float x = (float)rnd.NextDouble() * w;
+            float y = (float)rnd.NextDouble() * h * 0.8f;
+            float r = rnd.Next(4) == 0 ? 1.6f : 0.9f;
+            var color = rnd.Next(6) == 0 ? Pal.Yellow : Pal.Ink;
+            canvas.FillColor = color.WithAlpha(rnd.Next(3) == 0 ? 0.9f : 0.45f);
+            canvas.FillCircle(x, y, r);
+        }
+
+        float px = w * 0.82f, py = 84;
+        canvas.FillColor = Pal.Hill;
+        canvas.FillCircle(px, py, 40);
+        canvas.FillColor = Pal.HillFar;
+        canvas.FillCircle(px - 14, py - 8, 7);
+        canvas.FillCircle(px + 12, py + 14, 5);
+        canvas.StrokeColor = Pal.Gray.WithAlpha(0.7f);
+        canvas.StrokeSize = 3;
+        canvas.DrawEllipse(px - 66, py - 11, 132, 22);
+
+        canvas.FillColor = Pal.Hill;
+        canvas.FillCircle(w * 0.12f, h * 0.46f, 14);
     }
 
     static void Mountains(ICanvas canvas, float w, float h, float top)

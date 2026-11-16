@@ -68,6 +68,7 @@ public static class AppState
             Preferences.Default.Set("progress", JsonSerializer.Serialize(P));
         }
         Pal.Apply(Themes.Find(P.Theme));
+        _ = Music.UseTheme();
     }
 
     public static async Task LoadContent()
@@ -149,6 +150,7 @@ public static class AppState
         Preferences.Default.Remove("progress");
         P = new ProgressData();
         Pal.Apply(Themes.Find(P.Theme));
+        _ = Music.UseTheme();
         Version++;
         Sync.Clear();
         Reminders.Update();

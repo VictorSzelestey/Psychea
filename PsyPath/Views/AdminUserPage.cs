@@ -45,28 +45,21 @@ public class AdminUserPage : AdminBase
 
         if (role is "user" or "manager")
         {
-            var toggleRole = new Btn(role == "manager" ? "СНЯТЬ РОЛЬ МЕНЕДЖЕРА" : "НАЗНАЧИТЬ МЕНЕДЖЕРОМ", Pal.Paper2, Pal.Ink, 14)
-                { MinimumHeightRequest = 48 };
-            toggleRole.Clicked += async (_, _) =>
-            {
-                if (changingRole) return;
-                changingRole = true;
-                toggleRole.Enabled = false;
-                try
-                {
-                    bool manager = role != "manager";
-                    string question = manager
-                        ? "Пользователь сможет добавлять и редактировать справочник, уроки и опросники. Управление пользователями останется только у администратора."
-                        : "Пользователь потеряет доступ к редактированию контента. Его прогресс сохранится.";
-                    if (!await Dlg.Confirm(this, manager ? "НАЗНАЧИТЬ МЕНЕДЖЕРА?" : "СНЯТЬ РОЛЬ?", question, "ПОДТВЕРДИТЬ", "ОТМЕНА")) return;
-                    var result = await Api.SetManagerRole(id, manager);
-                    if (!result.Ok) { await Dlg.Alert(this, "РОЛЬ НЕ ИЗМЕНЕНА", result.Error); return; }
-                    await Load();
-                    await Dlg.Alert(this, "ГОТОВО", manager ? "Роль менеджера назначена." : "Роль менеджера снята.");
-                }
-                finally { changingRole = false; toggleRole.Enabled = true; }
-            };
-            stack.Children.Add(toggleRole);
+            bool manager = role != "manager";
+            stack.Children.Add(RoleButton(
+                manager ? "НАЗНАЧИТЬ МЕНЕДЖЕРОМ" : "СНЯТЬ РОЛЬ МЕНЕДЖЕРА", Pal.Paper2, Pal.Ink,
+                manager ? "manager" : "user",
+                manager ? "НАЗНАЧИТЬ МЕНЕДЖЕРА?" : "СНЯТЬ РОЛЬ?",
+                manager
+                    ? "Пользователь сможет добавлять и редактировать справочник, уроки и опросники. Управление пользователями останется только у администратора."
+                    : "Пользователь потеряет доступ к редактированию контента. Его прогресс сохранится.",
+                manager ? "Роль менеджера назначена." : "Роль менеджера снята."));
+
+            // админа потом снять нельзя — поэтому отдельная кнопка и прямое предупреждение
+            stack.Children.Add(RoleButton(
+                "НАЗНАЧИТЬ АДМИНОМ", Pal.RedInk, Pal.OnAccent, "admin", "НАЗНАЧИТЬ АДМИНА?",
+                "Пользователь получит все права: управление пользователями, назначение админов и редактирование контента. Снять роль администратора потом будет нельзя.",
+                "Роль администратора назначена."));
         }
 
         var grid = new Grid
@@ -110,6 +103,28 @@ public class AdminUserPage : AdminBase
         }
 
         Show("ПОЛЬЗОВАТЕЛЬ", stack, animate: true);
+    }
+
+    // кнопка смены роли: подтверждение, запрос, перезагрузка карточки
+    Btn RoleButton(string text, Color fill, Color ink, string newRole, string title, string question, string done)
+    {
+        var button = new Btn(text, fill, ink, 14) { MinimumHeightRequest = 48 };
+        button.Clicked += async (_, _) =>
+        {
+            if (changingRole) return;
+            changingRole = true;
+            button.Enabled = false;
+            try
+            {
+                if (!await Dlg.Confirm(this, title, question, "ПОДТВЕРДИТЬ", "ОТМЕНА")) return;
+                var result = await Api.SetRole(id, newRole);
+                if (!result.Ok) { await Dlg.Alert(this, "РОЛЬ НЕ ИЗМЕНЕНА", result.Error); return; }
+                await Load();
+                await Dlg.Alert(this, "ГОТОВО", done);
+            }
+            finally { changingRole = false; button.Enabled = true; }
+        };
+        return button;
     }
 
     // результат опросника: заголовок и полоски по шкалам с их названиями из текущего контента

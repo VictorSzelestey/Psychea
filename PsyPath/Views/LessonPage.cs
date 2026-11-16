@@ -42,6 +42,8 @@ public class LessonPage : BasePage
     bool switching;
     // введённый ответ засчитан с опечаткой
     bool typo;
+    // админ пропустил урок до конца: в статистику уроков на сервер такой проход не уходит
+    bool skipped;
 
     // теория перед заданиями: номер показанной карточки, -1 — уже идут задания
     readonly List<TheoryCard> theory;
@@ -120,6 +122,7 @@ public class LessonPage : BasePage
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Star),
                 new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto)
             }
         };
@@ -182,6 +185,17 @@ public class LessonPage : BasePage
         });
         Grid.SetColumn(hintBox, 3);
         header.Children.Add(hintBox);
+
+        // админ проверяет уроки: «перемотка» сразу к финалу, урок засчитывается пройденным
+        if (lesson != null && Api.User?.IsAdmin == true)
+        {
+            var skip = new Grid { WidthRequest = 44, HeightRequest = 48, VerticalOptions = LayoutOptions.Center };
+            skip.Children.Add(new PixelIcon(Icons.Skip, Pal.TealInk, 20) { HorizontalOptions = LayoutOptions.Center });
+            SemanticProperties.SetDescription(skip, "Пропустить урок до конца");
+            Ui.OnTap(skip, async () => await AdminSkip());
+            Grid.SetColumn(skip, 4);
+            header.Children.Add(skip);
+        }
 
         var topBox = new VerticalStackLayout { Spacing = 0 };
         topBox.Children.Add(header);
@@ -285,6 +299,23 @@ public class LessonPage : BasePage
             body.TranslationX = 24;
             await Task.WhenAll(body.Fade(1, 180), body.Move(0, 0, 180, Easing.CubicOut));
         }
+    }
+
+    async Task AdminSkip()
+    {
+        if (switching || skipped) return;
+        bool yes = await Dlg.Confirm(this, "ПРОПУСТИТЬ УРОК?",
+            "Урок сразу закончится и засчитается пройденным. Оставшиеся задания не повлияют на рейтинг, а проход не попадёт в статистику урока.",
+            "ПРОПУСТИТЬ", "ОТМЕНА");
+        if (!yes || switching) return;
+        switching = true;
+        skipped = true;
+        queue.Clear();
+        theoryAt = -1;
+        actionBtn.IsVisible = false;
+        feedback.IsVisible = false;
+        await Finish();
+        switching = false;
     }
 
     async Task StartTasks()
@@ -871,7 +902,7 @@ public class LessonPage : BasePage
         int ratingDelta = (int)Math.Round(p.Rating - ratingStart);
 
         // повтор ошибок в статистику уроков не идёт
-        if (lesson != null) Sync.Lesson(lesson.Id, accuracy, mistakes, xpGained);
+        if (lesson != null && !skipped) Sync.Lesson(lesson.Id, accuracy, mistakes, xpGained);
         Sound.Play("win");
 
         var stack = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 10, 18, 30) };

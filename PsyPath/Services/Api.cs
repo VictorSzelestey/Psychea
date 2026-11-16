@@ -107,8 +107,9 @@ public static class Api
     public static Task<ApiResult> AdminStats() => Send(HttpMethod.Get, "/api/admin/stats");
     public static Task<ApiResult> AdminUsers() => Send(HttpMethod.Get, "/api/admin/users");
     public static Task<ApiResult> AdminUser(long id) => Send(HttpMethod.Get, $"/api/admin/users/{id}");
-    public static Task<ApiResult> SetManagerRole(long id, bool manager) =>
-        Send(HttpMethod.Put, $"/api/admin/users/{id}/role", new { role = manager ? "manager" : "user" });
+    // role: user, manager или admin; снять роль администратора сервер не даст
+    public static Task<ApiResult> SetRole(long id, string role) =>
+        Send(HttpMethod.Put, $"/api/admin/users/{id}/role", new { role });
     public static Task<ApiResult> ContentHistory(string name) => Send(HttpMethod.Get, $"/api/admin/content/{name}/history");
     public static Task<ApiResult> Rollback(string name, int version) =>
         Send(HttpMethod.Post, $"/api/admin/content/{name}/rollback/{version}");

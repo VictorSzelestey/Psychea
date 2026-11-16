@@ -46,6 +46,8 @@ public static class Crystals
         AppState.P.Theme = theme.Id;
         AppState.Save();
         Pal.Apply(theme);
+        // у «Космоса» своя музыка, у остальных тем — обычная
+        _ = Music.UseTheme();
     }
 
     // 1 кристалл, 2 кристалла, 5 кристаллов

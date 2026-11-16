@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace PsyPath.Api;
 
-public record ManagerRoleRequest(string? Role);
+public record RoleRequest(string? Role);
 
 public static class AdminEndpoints
 {
@@ -12,20 +12,21 @@ public static class AdminEndpoints
         g.MapGet("/stats", Stats);
         g.MapGet("/users", Users);
         g.MapGet("/users/{id:long}", UserDetails);
-        g.MapPut("/users/{id:long}/role", SetManagerRole);
+        g.MapPut("/users/{id:long}/role", SetRole);
         // Отдельная группа: политики admin и content не должны складываться.
         app.MapGroup("/api/admin").RequireAuthorization("content").MapContentAdmin();
     }
 
-    static async Task<IResult> SetManagerRole(long id, ManagerRoleRequest req, IUserRoles roles, CancellationToken cancel)
+    // админ назначает менеджера, снимает его или назначает нового админа; снять админа нельзя
+    static async Task<IResult> SetRole(long id, RoleRequest req, IUserRoles roles, CancellationToken cancel)
     {
-        if (req.Role is not ("user" or "manager"))
-            return Errors.Bad("Можно назначить менеджера или вернуть роль пользователя");
-        return await roles.SetManager(id, req.Role == "manager", cancel) switch
+        if (req.Role is not ("user" or "manager" or "admin"))
+            return Errors.Bad("Можно назначить пользователя, менеджера или администратора");
+        return await roles.SetRole(id, req.Role, cancel) switch
         {
-            ManagerChange.Updated => Results.Ok(new { id, role = req.Role }),
-            ManagerChange.NotFound => Errors.NotFound("Пользователь не найден"),
-            _ => Errors.Conflict("Роль администратора здесь менять нельзя")
+            RoleChange.Updated => Results.Ok(new { id, role = req.Role }),
+            RoleChange.NotFound => Errors.NotFound("Пользователь не найден"),
+            _ => Errors.Conflict("Роль администратора менять нельзя")
         };
     }
 

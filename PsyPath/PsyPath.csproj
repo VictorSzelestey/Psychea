@@ -27,8 +27,9 @@
 
   <ItemGroup>
     <!-- Иконка и заставка -->
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.png" Color="#F2E9D8" />
-    <MauiSplashScreen Include="Resources\Splash\splash.png" Color="#E9DFF4" BaseSize="160,160" />
+    <!-- Иконка — буква «пси» на сиреневом; та же буква на заставке и в интро (Images\logo_psi.svg) -->
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appicon_psi.svg" Color="#6E4BA6" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#E9DFF4" BaseSize="160,160" />
 
     <!-- Маскот (манул без фона) -->
     <MauiImage Include="Resources\Images\*" />

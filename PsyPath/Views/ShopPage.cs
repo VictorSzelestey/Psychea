@@ -220,8 +220,10 @@ public class ShopPage : AdminBase
             }
         };
         row.Children.Add(swatch);
-        var name = Ui.Text(theme.Name, 15, Pal.Ink, true);
-        name.VerticalTextAlignment = TextAlignment.Center;
+        var name = new VerticalStackLayout { Spacing = 1, VerticalOptions = LayoutOptions.Center };
+        name.Children.Add(Ui.Text(theme.Name, 15, Pal.Ink, true));
+        if (theme.Music != null)
+            name.Children.Add(Ui.Text("♪ своя музыка в меню", 11, Pal.Ink2));
         Grid.SetColumn(name, 1);
         row.Children.Add(name);
         var tag = PriceTag(owned, current, theme.Price, "ВКЛЮЧЕНА");

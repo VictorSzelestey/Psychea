@@ -86,10 +86,16 @@ Check(await Request(HttpMethod.Put, "/api/admin/users/3/role", "1", """{"role":"
     "administrator revokes manager role");
 Check(await Request(HttpMethod.Get, "/api/admin/content/reference/history", "3", probe: true, claim: "manager") == HttpStatusCode.Forbidden,
     "revoked manager token loses access immediately");
-Check(await Request(HttpMethod.Put, "/api/admin/users/3/role", "1", """{"role":"admin"}""") == HttpStatusCode.BadRequest,
-    "manager endpoint cannot grant administrator role");
+Check(await Request(HttpMethod.Put, "/api/admin/users/3/role", "1", """{"role":"owner"}""") == HttpStatusCode.BadRequest,
+    "unknown role is rejected");
+Check(await Request(HttpMethod.Put, "/api/admin/users/3/role", "1", """{"role":"admin"}""") == HttpStatusCode.OK,
+    "administrator appoints another administrator");
+Check(await Request(HttpMethod.Get, "/api/admin/users", "3", probe: true) == HttpStatusCode.NoContent,
+    "new administrator gets admin access with previously issued token");
+Check(await Request(HttpMethod.Put, "/api/admin/users/3/role", "1", """{"role":"user"}""") == HttpStatusCode.Conflict,
+    "appointed administrator cannot be demoted");
 Check(await Request(HttpMethod.Put, "/api/admin/users/1/role", "1", """{"role":"user"}""") == HttpStatusCode.Conflict,
-    "administrator cannot accidentally demote self through manager endpoint");
+    "administrator cannot accidentally demote self");
 Check(await Request(HttpMethod.Put, "/api/admin/users/999/role", "1", """{"role":"manager"}""") == HttpStatusCode.NotFound,
     "missing account returns 404");
 roles.Accounts[2] = new AccountAccess("manager", true);
@@ -108,12 +114,12 @@ sealed class TestRoles : IUserRoles
     public Dictionary<long, AccountAccess> Accounts { get; } = new()
     { [1] = new("admin", false), [2] = new("manager", false), [3] = new("user", false) };
     public Task<AccountAccess?> Find(long id, CancellationToken cancel) => Task.FromResult(Accounts.GetValueOrDefault(id));
-    public Task<ManagerChange> SetManager(long id, bool manager, CancellationToken cancel)
+    public Task<RoleChange> SetRole(long id, string role, CancellationToken cancel)
     {
-        if (!Accounts.TryGetValue(id, out var current)) return Task.FromResult(ManagerChange.NotFound);
-        if (current.Role == "admin") return Task.FromResult(ManagerChange.Administrator);
-        Accounts[id] = current with { Role = manager ? "manager" : "user" };
-        return Task.FromResult(ManagerChange.Updated);
+        if (!Accounts.TryGetValue(id, out var current)) return Task.FromResult(RoleChange.NotFound);
+        if (current.Role == "admin") return Task.FromResult(RoleChange.Administrator);
+        Accounts[id] = current with { Role = role };
+        return Task.FromResult(RoleChange.Updated);
     }
 }
 sealed class TestIdentity(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
