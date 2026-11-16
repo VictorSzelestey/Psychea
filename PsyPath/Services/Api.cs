@@ -93,6 +93,8 @@ public static class Api
     public static Task<ApiResult> Top() => Send(HttpMethod.Get, "/api/me/top");
     public static Task<ApiResult> SetTopHidden(bool hidden) => Send(HttpMethod.Put, "/api/me/top", new { hidden });
     public static Task<ApiResult> DeleteAccount(string password) => Send(HttpMethod.Post, "/api/me/delete", new { password });
+    // промокод из магазина: сервер отмечает активацию и отвечает наградой { reward, amount, item }
+    public static Task<ApiResult> RedeemPromo(string code) => Send(HttpMethod.Post, "/api/me/promo", new { code });
 
     // ProgressData уходит как есть, сервер сам берёт из него числа для статистики
     public static Task<ApiResult> PushProgress(ProgressData p) =>
@@ -110,6 +112,11 @@ public static class Api
     // role: user, manager или admin; снять роль администратора сервер не даст
     public static Task<ApiResult> SetRole(long id, string role) =>
         Send(HttpMethod.Put, $"/api/admin/users/{id}/role", new { role });
+    public static Task<ApiResult> AdminPromos() => Send(HttpMethod.Get, "/api/admin/promo");
+    // reward: crystals (amount) или item (id предмета магазина); maxUses null — без ограничения
+    public static Task<ApiResult> CreatePromo(string code, string reward, int amount, string item, int? maxUses) =>
+        Send(HttpMethod.Post, "/api/admin/promo", new { code, reward, amount, item, maxUses });
+    public static Task<ApiResult> DeletePromo(string code) => Send(HttpMethod.Delete, $"/api/admin/promo/{Uri.EscapeDataString(code)}");
     public static Task<ApiResult> ContentHistory(string name) => Send(HttpMethod.Get, $"/api/admin/content/{name}/history");
     public static Task<ApiResult> Rollback(string name, int version) =>
         Send(HttpMethod.Post, $"/api/admin/content/{name}/rollback/{version}");

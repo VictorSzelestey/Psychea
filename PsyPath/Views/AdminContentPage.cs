@@ -110,7 +110,7 @@ public class AdminContentPage : AdminBase
         string json = lessons.ToJsonString();
 
         var box = new VerticalStackLayout { Spacing = 6 };
-        box.Children.Add(Ui.Text($"ЮНИТ {secId}  //  {secTitle.ToUpperInvariant()}", 14, Pal.Ink, true));
+        box.Children.Add(UnitTitle(secId, secTitle));
         box.Children.Add(Ui.Text($"{lessons.Count} уроков, {tasks} заданий. Есть в приложении, на сервере ещё нет.", 12, Pal.Ink));
 
         var publish = new Btn("ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ", Pal.Violet, Pal.OnAccent, 14);
@@ -184,6 +184,22 @@ public class AdminContentPage : AdminBase
         return Ui.Card(box, Pal.Amber, 12);
     }
 
+    // номер юнита — как на главной («Раздел 3»), id из JSON рядом мелко: «ЮНИТ 3 // РАЗМИНКА · id 13»
+    static Label UnitTitle(int id, string title)
+    {
+        int number = AppState.SectionNumber(id);
+        var label = Ui.Text("", 14, Pal.Ink, true);
+        label.FormattedText = new FormattedString
+        {
+            Spans =
+            {
+                new Span { Text = $"ЮНИТ {(number > 0 ? number : id)}  //  {title.ToUpperInvariant()}" },
+                new Span { Text = $"  ·  id {id}", FontSize = 10 * Ui.Scale, TextColor = Pal.Ink2, FontFamily = "Body" }
+            }
+        };
+        return label;
+    }
+
     View Build()
     {
         var stack = List();
@@ -200,7 +216,7 @@ public class AdminContentPage : AdminBase
             for (int si = 0; si < sections.Count; si++)
             {
                 var sec = sections[si]!;
-                stack.Children.Add(Ui.Box(Ui.Text($"ЮНИТ {sec["id"]}  //  {Str(sec, "title").ToUpperInvariant()}", 14, Pal.Ink, true), Pal.Amber, 10));
+                stack.Children.Add(Ui.Box(UnitTitle(sec["id"]!.GetValue<int>(), Str(sec, "title")), Pal.Amber, 10));
                 var lessons = sec["lessons"]!.AsArray();
                 for (int li = 0; li < lessons.Count; li++)
                     AddLesson(stack, sec, lessons[li]!, si, li);

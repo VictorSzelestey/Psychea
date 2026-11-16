@@ -64,6 +64,9 @@ public class AdminPage : AdminBase
         var users = new Btn("ПОЛЬЗОВАТЕЛИ ▶", Pal.Paper2);
         users.Clicked += async (_, _) => await Push(new AdminUsersPage());
         stack.Children.Add(users);
+        var promo = new Btn("ПРОМОКОДЫ ▶", Pal.Paper2);
+        promo.Clicked += async (_, _) => await Push(new AdminPromoPage());
+        stack.Children.Add(promo);
         stack.Children.Add(CrystalsCard());
         stack.Children.Add(ContentLinks());
 

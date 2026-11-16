@@ -95,12 +95,13 @@ public static class Ui
         };
     }
 
-    // версия приложения внизу экрана: «ПСИХЕЯ v1.1 (2)»
-    public static Label VersionLabel()
+    // версия приложения внизу экрана: «ПСИХЕЯ v1.1 (2)» и под ней пометка о бете
+    public static View VersionLabel()
     {
-        var v = Text($"ПСИХЕЯ v{AppInfo.Current.VersionString} ({AppInfo.Current.BuildString})", 11, Pal.Ink2, true, TextAlignment.Center);
-        v.Margin = new Thickness(0, 4, 0, 0);
-        return v;
+        var box = new VerticalStackLayout { Spacing = 2, Margin = new Thickness(0, 4, 0, 0) };
+        box.Children.Add(Text($"ПСИХЕЯ v{AppInfo.Current.VersionString} ({AppInfo.Current.BuildString})", 11, Pal.Ink2, true, TextAlignment.Center));
+        box.Children.Add(Text("Это бета-версия, она не отражает финальную версию продукта", 10, Pal.Ink2, false, TextAlignment.Center));
+        return box;
     }
 
     // плашка-«таблетка»: число или короткий текст, слева может быть пиксельная иконка

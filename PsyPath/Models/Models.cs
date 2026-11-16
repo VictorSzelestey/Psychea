@@ -257,6 +257,15 @@ public class ProgressData
     public int DailyQuizzes { get; set; }
     public List<string> DailyDone { get; set; } = new();
 
+    // открытые острова (Islands.All, кроме первого — он открыт всегда) и те, у которых карта уже показала,
+    // как падает замок. Открытый остров не закрывается
+    public List<int> Islands { get; set; } = new();
+    public List<int> IslandsShown { get; set; } = new();
+
+    // за что уже вернули кристаллы (id темы, убранной из продажи); Notices — сообщения, которые главная покажет один раз
+    public List<string> Refunds { get; set; } = new();
+    public List<string> Notices { get; set; } = new();
+
     public List<string> Done { get; set; } = new();
     public List<string> Achievements { get; set; } = new();
     public int PerfectLessons { get; set; }

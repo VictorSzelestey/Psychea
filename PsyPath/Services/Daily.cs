@@ -4,16 +4,19 @@ namespace PsyPath.Services;
 
 public record DailyTask(string Id, string Title, int Goal, int Reward, Func<ProgressData, int> Progress);
 
-// задания дня: три из пяти, набор зависит от даты. Кристаллы начисляются сами, как только задание выполнено
+// задания дня: три из пяти, набор зависит от даты. Кристаллы начисляет Collect: после урока, карточек и опросника,
+// и главная при каждом показе: если 50 XP набрались не уроком, карточками или опросником
+// (например, прогресс пришёл с сервера), кристаллы не ждут следующего занятия
 public static class Daily
 {
     static readonly DailyTask[] Pool =
     {
-        new("lessons2", "Пройди 2 урока", 2, 4, p => p.DailyLessons),
-        new("perfect", "Пройди урок без ошибок", 1, 5, p => p.DailyPerfect),
-        new("cards10", "Повтори 10 карточек", 10, 3, p => p.DailyCards),
-        new("quiz", "Пройди опросник", 1, 3, p => p.DailyQuizzes),
-        new("xp50", "Набери 50 XP", 50, 4, _ => AppState.TodayXp)
+        // награды с 1.7.0 на 50% больше прежних 4, 5, 3, 3, 4; половинки округлены вверх
+        new("lessons2", "Пройди 2 урока", 2, 6, p => p.DailyLessons),
+        new("perfect", "Пройди урок без ошибок", 1, 8, p => p.DailyPerfect),
+        new("cards10", "Повтори 10 карточек", 10, 5, p => p.DailyCards),
+        new("quiz", "Пройди опросник", 1, 5, p => p.DailyQuizzes),
+        new("xp50", "Набери 50 XP", 50, 6, _ => AppState.TodayXp)
     };
 
     // шаг 2 по кругу из пяти: три разных задания, каждый день другой набор

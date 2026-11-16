@@ -9,6 +9,8 @@ public class LoginPage : BasePage
     bool busy;
     // пароль виден: переключается глазиком справа в поле
     bool showPassword;
+    // манул рассказал, какие данные хранятся: один раз за показ экрана, при первом переходе к регистрации
+    bool privacyShown;
     Entry login = new();
     Entry password = new();
     Entry name = new();
@@ -64,6 +66,13 @@ public class LoginPage : BasePage
             register = !register;
             status.Text = "";
             await SwapBody(Build());
+            if (register && !privacyShown)
+            {
+                privacyShown = true;
+                await Note("love", "МЫ НЕ СЛЕДИМ ЗА ТОБОЙ",
+                    "Психея не собирает личные данные и телеметрию. На сервере хранятся только логин, имя и результаты занятий — " +
+                    "чтобы прогресс не потерялся при смене телефона. Журнал ошибок остаётся в телефоне, пока ты сам не решишь им поделиться.");
+            }
         }, TextAlignment.Center));
 
         stack.Children.Add(Ui.VersionLabel());

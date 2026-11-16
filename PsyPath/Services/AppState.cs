@@ -59,16 +59,25 @@ public static class AppState
         AdoptProgress();
     }
 
-    // прогресс прочитан из телефона или пришёл с сервера: стартовые кристаллы и тема игрока
+    // прогресс прочитан из телефона или пришёл с сервера: стартовые кристаллы, возврат за убранное из магазина,
+    // открытые острова и тема игрока. Приложение открывается на карте
     static void AdoptProgress()
     {
+        bool changed = false;
         if (!P.CrystalsStarted)
         {
             Crystals.GiveStartBonus();
-            Preferences.Default.Set("progress", JsonSerializer.Serialize(P));
+            changed = true;
         }
-        Pal.Apply(Themes.Find(P.Theme));
-        _ = Music.UseTheme();
+        // сначала острова: тема «Космос» остаётся включённой, если Остров ночи уже заработан
+        changed |= Islands.Update();
+        changed |= Crystals.RefundRemoved();
+        if (changed)
+        {
+            Preferences.Default.Set("progress", JsonSerializer.Serialize(P));
+            if (Api.LoggedIn) Sync.MarkDirty();
+        }
+        Islands.Enter(null);
     }
 
     public static async Task LoadContent()
@@ -149,8 +158,7 @@ public static class AppState
         pushDelay?.Cancel();
         Preferences.Default.Remove("progress");
         P = new ProgressData();
-        Pal.Apply(Themes.Find(P.Theme));
-        _ = Music.UseTheme();
+        Islands.Enter(null);
         Version++;
         Sync.Clear();
         Reminders.Update();

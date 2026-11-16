@@ -60,5 +60,6 @@ app.MapAuth();
 app.MapMe();
 app.MapContent();
 app.MapAdmin();
+app.MapPromo();
 
 app.Run();

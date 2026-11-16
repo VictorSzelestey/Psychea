@@ -2,7 +2,8 @@ using PsyPath.UI;
 
 namespace PsyPath.Services;
 
-// фоновая музыка: Resources/Raw/music_menu.mp3 по кругу, у темы со своей музыкой («Космос») — её трек.
+// фоновая музыка: Resources/Raw/music_menu.mp3 по кругу, у темы со своей музыкой («Джунгли», «Космос») — её трек.
+// На острове играет музыка его темы, на карте — выбранной в магазине.
 // Вкл/выкл, громкость и тишина в опросниках и карточках — в настройках, они общие для всех треков
 public static class Music
 {
@@ -17,7 +18,7 @@ public static class Music
     static string loaded = "";
 
     // трек текущей темы
-    static string Track => Themes.Find(AppState.P.Theme).Music ?? DefaultTrack;
+    static string Track => Islands.CurrentTheme.Music ?? DefaultTrack;
 
     public static async Task Init()
     {
@@ -41,7 +42,7 @@ public static class Music
 #endif
     }
 
-    // тема сменилась (магазин, вход, выход): у темы может быть своя музыка
+    // тема сменилась (магазин, остров, вход, выход): у темы может быть своя музыка
     public static async Task UseTheme()
     {
 #if ANDROID

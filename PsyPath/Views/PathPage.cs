@@ -14,7 +14,8 @@ public enum LessonState
     Mastered
 }
 
-// главный экран: путь из разделов, внутри раздела — его уроки
+// главный экран: карта из четырёх островов. На острове — его тема и музыка, путь из разделов и уроков.
+// Переход между картой и островом закрывают облака: под ними тема меняется и вкладки собираются заново
 public class PathPage : DataPage
 {
     // зигзаг: отступ кружка слева; справа строка держит остаток до MaxOffset, чтобы карточка не вылезла за экран
@@ -23,21 +24,83 @@ public class PathPage : DataPage
     const double SectionSize = 78;
     const double LessonSize = 58;
 
+    // облака закрыли экран перед сменой острова: новая главная собирается под ними и раскрывает их
+    static bool cloudsClosed;
+
     // кнопка текущего раздела; пульсирует, только пока вкладка на экране
     VisualElement? pulsing;
     // раскрытые разделы переживают пересборку экрана после урока
     readonly HashSet<int> opened = new();
+    // разделы, которые игрок раскрывал или сворачивал сам: раздел с текущим уроком раскрывается сам только до этого
+    readonly HashSet<int> touched = new();
+    Clouds? clouds;
+    IslandMap? map;
+    bool traveling;
+
+    protected override bool AnimateEnter => !cloudsClosed;
 
     protected override void Refresh()
     {
+        // острова открываются по пройденным урокам; задание дня, выполненное не на занятии, приносит кристаллы здесь
+        bool changed = Islands.Update();
+        changed |= Daily.Collect().Count > 0;
+        if (changed) AppState.Save();
         base.Refresh();
         StartPulse();
+        _ = AfterShow();
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         pulsing?.AbortAnimation("pulse");
+    }
+
+    // «Назад» на острове возвращает на карту, а не закрывает приложение
+    protected override bool OnBackButtonPressed()
+    {
+        if (Islands.Active == null || NoteOpen) return base.OnBackButtonPressed();
+        _ = Travel(null);
+        return true;
+    }
+
+    async Task AfterShow()
+    {
+        if (cloudsClosed && clouds != null)
+        {
+            // экран успевает нарисоваться под облаками; флаг снимается после паузы,
+            // иначе въезд вкладки (PlayEnter сразу после Refresh) проявил бы её вместе с облаками с нуля
+            await Task.Delay(140);
+            cloudsClosed = false;
+            await clouds.Open();
+        }
+        if (map != null) await map.Reveal();
+        await ShowNotices();
+    }
+
+    // сообщения, которые главная показывает один раз (ProgressData.Notices)
+    async Task ShowNotices()
+    {
+        var p = AppState.P;
+        if (!p.Notices.Contains("refund_cosmo")) return;
+        int n = Crystals.CosmoRefund;
+        await Note("love", "КРИСТАЛЛЫ ВЕРНУЛИСЬ",
+            "Тема «Космос» больше не продаётся: теперь она открывается вместе с Островом ночи. " +
+            $"Мы вернули {n} {Crystals.Word(n)}, потраченных на неё.");
+        p.Notices.Remove("refund_cosmo");
+        AppState.Save();
+    }
+
+    // на остров или на карту (null): облака закрывают экран, тема меняется, вкладки собираются заново
+    async Task Travel(Island? to)
+    {
+        if (traveling) return;
+        traveling = true;
+        Sound.Play("flip");
+        if (clouds != null) await clouds.Close();
+        Islands.Enter(to);
+        cloudsClosed = true;
+        await SwitchRoot(new AppShell(), fade: false);
     }
 
     void StartPulse()
@@ -55,6 +118,7 @@ public class PathPage : DataPage
     {
         pulsing?.AbortAnimation("pulse");
         pulsing = null;
+        map = null;
 
         int level = AppState.Level;
         var lv = AppState.LevelInfoOf(level);
@@ -67,9 +131,10 @@ public class PathPage : DataPage
 
         var path = new VerticalStackLayout { Spacing = 14, Padding = new Thickness(18, 12, 18, 32) };
 
+        // состояния уроков открытых островов по порядку островов; первый непройденный — текущий
         var states = new Dictionary<string, LessonState>();
         Lesson? current = null;
-        foreach (var sec in AppState.Lessons.Sections)
+        foreach (var sec in Islands.All.Where(Islands.IsOpen).SelectMany(Islands.SectionsOf))
         {
             bool secUnlocked = level >= AppState.UnlockLevel(sec.Id);
             for (int i = 0; i < sec.Lessons.Count; i++)
@@ -94,37 +159,89 @@ public class PathPage : DataPage
             }
         }
 
-        path.Children.Add(HeroCard(current));
-        path.Children.Add(DailyCard());
-        var review = ReviewCard();
-        if (review != null) path.Children.Add(review);
-
-        int place = 0;
-        foreach (var sec in AppState.Lessons.Sections)
+        var island = Islands.Active;
+        if (island == null)
         {
-            if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
-            AddSection(path, sec, place, states, level);
-            place++;
+            map = new IslandMap();
+            map.Opened += i => _ = Travel(i);
+            path.Children.Add(map);
+            path.Children.Add(HeroCard(current));
+            path.Children.Add(DailyCard());
+            var review = ReviewCard();
+            if (review != null) path.Children.Add(review);
         }
-
-        var known = AppState.Lessons.Sections.Select(s => s.Id).ToHashSet();
-        foreach (var u in AppState.Rating.SectionUnlock.Where(u => !known.Contains(u.Section)))
+        else
         {
-            if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
-            int unlock = u.UnlockLevel;
-            var chevron = Chevron(true);
-            int upcoming = AppState.SectionNumber(u.Section);
-            path.Children.Add(Node(place, SectionSize, $"Раздел {upcoming}", u.Title, LessonState.Locked, upcoming.ToString(), chevron, async () =>
-                await Dlg.Alert(this, "СКОРО", $"Раздел появится позже и откроется на {unlock} уровне.")));
-            place++;
+            path.Children.Add(IslandHeader(island));
+            var fresh = Islands.NotShown();
+            if (fresh.Count > 0) path.Children.Add(NewIslandCard(fresh));
+            int place = 0;
+            foreach (var sec in Islands.SectionsOf(island))
+            {
+                if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
+                AddSection(path, sec, place, states, level, island.Decor);
+                place++;
+            }
         }
 
         var scroll = new ScrollView { Content = path };
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);
 
+        // облака поверх всего экрана, вместе с верхней панелью
+        clouds = new Clouds(cloudsClosed);
+        Grid.SetRowSpan(clouds, 2);
+        root.Children.Add(clouds);
+
         SetBody(root);
         return scroll;
+    }
+
+    // шапка острова: картинка, название, сколько пройдено и дорога назад к карте
+    View IslandHeader(Island island)
+    {
+        var lessons = Islands.LessonsOf(island);
+        int passed = lessons.Count(AppState.IsPassed);
+
+        var g = new Grid
+        {
+            ColumnSpacing = 12,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) }
+        };
+        var picture = new Image { Source = $"island_{island.Image}.png", WidthRequest = 104, HeightRequest = 104, Aspect = Aspect.AspectFit, VerticalOptions = LayoutOptions.Center };
+        Anim.Idle(picture, 3);
+        g.Children.Add(picture);
+
+        var text = new VerticalStackLayout { Spacing = 6, VerticalOptions = LayoutOptions.Center };
+        text.Children.Add(Ui.Text($"ОСТРОВ {island.Number} · ТЕМА «{Islands.ThemeOf(island).Name.ToUpperInvariant()}»", 11, Pal.Ink2, true));
+        text.Children.Add(Ui.Text(island.Name, 20, Pal.Ink, true));
+        text.Children.Add(new Bar(Pal.Violet) { Value = lessons.Count == 0 ? 0 : (double)passed / lessons.Count });
+        text.Children.Add(Ui.Text($"Пройдено {passed} из {lessons.Count}", 12, Pal.Ink2));
+        Grid.SetColumn(text, 1);
+        g.Children.Add(text);
+
+        var box = new VerticalStackLayout { Spacing = 10 };
+        box.Children.Add(g);
+        var back = new Btn("◀  К КАРТЕ ОСТРОВОВ", Pal.Paper2, null, 14);
+        back.Clicked += async (s, e) => await Travel(null);
+        box.Children.Add(back);
+
+        var card = Ui.Card(box, Pal.Paper, 14, 26);
+        card.Shadow = Ui.SoftShadow();
+        return card;
+    }
+
+    // остров пройден, а следующий ещё не показан на карте — зовём туда
+    View NewIslandCard(List<Island> fresh)
+    {
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text("ОТКРЫТ НОВЫЙ ОСТРОВ!", 12, Pal.RedInk, true));
+        foreach (var i in fresh)
+            box.Children.Add(Ui.Text($"{i.Name} и тема «{Islands.ThemeOf(i).Name}» для всего приложения", 14, Pal.Ink, true));
+        var go = new Btn("К КАРТЕ ▶", Pal.Violet, Pal.OnAccent, 14);
+        go.Clicked += async (s, e) => await Travel(null);
+        box.Children.Add(go);
+        return Ui.Box(box, Pal.Amber, 14);
     }
 
     static double OffsetOf(int place) => Offsets[place % Offsets.Length];
@@ -133,7 +250,7 @@ public class PathPage : DataPage
 
     static double LessonCenter(int place) => OffsetOf(place) + LessonSize / 2;
 
-    void AddSection(VerticalStackLayout path, Section sec, int place, Dictionary<string, LessonState> states, int level)
+    void AddSection(VerticalStackLayout path, Section sec, int place, Dictionary<string, LessonState> states, int level, string decor)
     {
         var lessonStates = sec.Lessons.Select(l => states[l.Id]).ToList();
         LessonState state;
@@ -142,11 +259,13 @@ public class PathPage : DataPage
         else if (lessonStates.Count > 0 && lessonStates.All(s => s is LessonState.Done or LessonState.Mastered)) state = LessonState.Done;
         else state = LessonState.Open;
 
+        if (state == LessonState.Current && !touched.Contains(sec.Id)) opened.Add(sec.Id);
+
         var lessons = new VerticalStackLayout { Spacing = 14, IsVisible = opened.Contains(sec.Id) };
         for (int i = 0; i < sec.Lessons.Count; i++)
         {
             if (i > 0) lessons.Children.Add(new DashLink(LessonCenter(i - 1), LessonCenter(i)));
-            lessons.Children.Add(MakeLesson(sec.Lessons[i], i, states[sec.Lessons[i].Id]));
+            lessons.Children.Add(MakeLesson(sec.Lessons[i], i, states[sec.Lessons[i].Id], decor, place));
         }
 
         var chevron = Chevron(state == LessonState.Locked);
@@ -168,16 +287,17 @@ public class PathPage : DataPage
                 }
                 bool show = !lessons.IsVisible;
                 lessons.IsVisible = show;
+                touched.Add(id);
                 if (show) opened.Add(id);
                 else opened.Remove(id);
                 await chevron.Spin(show ? 90 : 0, 160);
-            }, burst: state == LessonState.Current, pulse: state == LessonState.Current);
+            }, burst: state == LessonState.Current, pulse: state == LessonState.Current, decor: decor, variant: place * 2);
 
         path.Children.Add(node);
         path.Children.Add(lessons);
     }
 
-    View MakeLesson(Lesson lesson, int idx, LessonState state)
+    View MakeLesson(Lesson lesson, int idx, LessonState state, string decor, int section)
     {
         string glyph = state is LessonState.Done or LessonState.Mastered ? "✓" : (idx + 1).ToString();
         return Node(idx, LessonSize, $"Урок {idx + 1}", lesson.Title, state, glyph, Chevron(state == LessonState.Locked), async () =>
@@ -188,7 +308,7 @@ public class PathPage : DataPage
                 return;
             }
             await Push(new LessonPage(lesson));
-        });
+        }, decor: decor, variant: idx + section + 1);
     }
 
     static Label Chevron(bool locked)
@@ -198,9 +318,9 @@ public class PathPage : DataPage
         return chevron;
     }
 
-    // кружок на пути и карточка, заходящая под него
+    // кружок на пути и карточка, заходящая под него; decor — украшение кружка на острове
     View Node(int place, double size, string caption, string title, LessonState state, string glyph, Label chevron, Action tap,
-        bool burst = false, bool pulse = false)
+        bool burst = false, bool pulse = false, string? decor = null, int variant = 0)
     {
         bool isLocked = state == LessonState.Locked;
         Color fill = state switch
@@ -269,6 +389,7 @@ public class PathPage : DataPage
             ColumnDefinitions = { new ColumnDefinition(new GridLength(size)), new ColumnDefinition(GridLength.Star) }
         };
         node.Children.Add(card);
+        if (decor != null) node.Children.Add(new Decor(decor, variant, size));
         node.Children.Add(circle);
         if (burst) node.Children.Add(new Burst());
         Ui.OnTap(node, tap);
@@ -381,9 +502,10 @@ public class PathPage : DataPage
             left.Children.Add(Ui.Text((done ? "✓ " : "") + t.Title, 13, done ? Pal.GreenInk : Pal.Ink, true));
             if (!done) left.Children.Add(new Bar(Pal.Teal) { Value = (double)have / t.Goal });
             row.Children.Add(left);
+            // сначала прогресс цели, потом награда и кристалл: «1/2  +6 ◆»
             var prize = new HorizontalStackLayout { Spacing = 4, VerticalOptions = LayoutOptions.Center };
+            prize.Children.Add(Ui.Text(done ? $"ПОЛУЧЕНО  +{t.Reward}" : $"{have}/{t.Goal}  +{t.Reward}", 12, done ? Pal.Ink2 : Pal.Ink, true));
             prize.Children.Add(new PixelIcon(Icons.Crystal, Pal.Teal, 14, Pal.Cyan));
-            prize.Children.Add(Ui.Text(done ? "ПОЛУЧЕНО" : $"{have}/{t.Goal}  +{t.Reward}", 12, done ? Pal.Ink2 : Pal.Ink, true));
             Grid.SetColumn(prize, 1);
             row.Children.Add(prize);
             SemanticProperties.SetDescription(row, done ? $"{t.Title}: выполнено" : $"{t.Title}: {have} из {t.Goal}, награда {t.Reward} {Crystals.Word(t.Reward)}");
@@ -422,20 +544,22 @@ public class PathPage : DataPage
         return button;
     }
 
-    // манул занимает правый нижний угол, текст и кнопка держатся левее него
+    // манул занимает правый нижний угол, текст и кнопка держатся левее него.
+    // Кнопка везёт на остров текущего урока: уроки проходят в теме своего острова
     View HeroCard(Lesson? current)
     {
         const double CatHeight = 136;
 
         var text = new VerticalStackLayout { Spacing = 8, Margin = new Thickness(0, 0, 118, 0) };
         text.Children.Add(Ui.Text("Изучай психологию вместе с манулом!", 21, Pal.Ink, true));
-        text.Children.Add(Ui.Text(current != null ? "Маленькие шаги — большие перемены ♥" : "Ты прошёл всё, что сейчас доступно. Новые разделы скоро появятся!", 13, Pal.Ink2));
-        if (current != null)
+        text.Children.Add(Ui.Text(current != null ? "Маленькие шаги — большие перемены ♥" : "Ты прошёл всё, что сейчас доступно. Новые острова скоро появятся!", 13, Pal.Ink2));
+        var island = current == null ? null : Islands.All.FirstOrDefault(i => Islands.SectionsOf(i).Any(s => s.Lessons.Contains(current)));
+        if (island != null)
         {
-            var lesson = current;
-            var go = new Btn("▶  Начать урок", Pal.Violet, Pal.OnAccent, 15);
-            go.Clicked += async (s, e) => await Push(new LessonPage(lesson));
+            var go = new Btn("▶  Плыть к уроку", Pal.Violet, Pal.OnAccent, 15);
+            go.Clicked += async (s, e) => await Travel(island);
             text.Children.Add(go);
+            text.Children.Add(Ui.Text(island.Name, 12, Pal.Ink2, true));
         }
 
         var g = new Grid();

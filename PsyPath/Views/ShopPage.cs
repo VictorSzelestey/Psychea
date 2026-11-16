@@ -4,9 +4,14 @@ using PsyPath.UI;
 
 namespace PsyPath.Views;
 
-// магазин за кристаллы: темы оформления и аватарки. Купленное остаётся навсегда и переносится с аккаунтом
+// магазин за кристаллы: темы оформления и аватарки. Купленное остаётся навсегда и переносится с аккаунтом.
+// Темы островов не продаются — открываются вместе с островом. Промокод из админки дарит кристаллы или предмет
 public class ShopPage : AdminBase
 {
+    // введённый промокод переживает пересборку экрана после покупки
+    string promo = "";
+    bool redeeming;
+
     public ShopPage() => Build();
 
     void Build()
@@ -20,6 +25,9 @@ public class ShopPage : AdminBase
         s.Children.Add(Ui.Text($"Кристаллы дают за новый урок (+{Crystals.ForLesson}, без ошибок ещё +{Crystals.ForPerfect}), " +
             $"за опросник (+{Crystals.ForQuestionnaire} в день) и за рубежи серии: 5, 10, 20, 30, 50, 100 дней — столько, сколько дней.",
             12, Pal.Ink2));
+
+        s.Children.Add(Form.Section("ПРОМОКОД"));
+        s.Children.Add(PromoCard());
 
         s.Children.Add(Form.Section("ПОЛЕЗНОЕ"));
         s.Children.Add(FreezeCard());
@@ -76,6 +84,70 @@ public class ShopPage : AdminBase
         }
         s.Children.Add(outfits);
         Show("МАГАЗИН", s);
+    }
+
+    View PromoCard()
+    {
+        var entry = new Entry
+        {
+            Text = promo,
+            Placeholder = "например, PSY2026",
+            PlaceholderColor = Pal.Ink2,
+            TextColor = Pal.Ink,
+            FontFamily = "Body",
+            FontSize = 15 * Ui.Scale,
+            IsSpellCheckEnabled = false,
+            IsTextPredictionEnabled = false,
+            Keyboard = Keyboard.Plain,
+            BackgroundColor = Colors.Transparent
+        };
+        entry.TextChanged += (s, e) => promo = e.NewTextValue ?? "";
+        var field = new Border
+        {
+            Content = entry,
+            BackgroundColor = Pal.Paper2,
+            Stroke = new SolidColorBrush(Pal.Line),
+            StrokeThickness = 1,
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(14) },
+            Padding = new Thickness(12, 2)
+        };
+        SemanticProperties.SetDescription(field, "Поле для промокода");
+
+        var go = new Btn("АКТИВИРОВАТЬ", Pal.Violet, Pal.OnAccent, 14);
+        go.Clicked += async (s, e) => await Redeem();
+        entry.Completed += async (s, e) => await Redeem();
+
+        var box = new VerticalStackLayout { Spacing = 8 };
+        box.Children.Add(Ui.Text("Промокод дарит кристаллы или предмет из магазина. Каждый код — один раз на аккаунт.", 11, Pal.Ink2));
+        box.Children.Add(field);
+        box.Children.Add(go);
+        return Ui.Card(box, Pal.Paper, 12);
+    }
+
+    async Task Redeem()
+    {
+        string code = promo.Trim();
+        if (redeeming || code.Length == 0) return;
+        if (!Api.LoggedIn)
+        {
+            await Dlg.Alert(this, "НУЖЕН АККАУНТ", "Промокоды проверяет сервер — войди в аккаунт в профиле.");
+            return;
+        }
+        redeeming = true;
+        var r = await Api.RedeemPromo(code);
+        redeeming = false;
+        if (!r.Ok)
+        {
+            Sound.Play("bad");
+            await Dlg.Alert(this, "НЕ ВЫШЛО", r.Error);
+            return;
+        }
+        var b = r.Body;
+        string got = Crystals.GrantPromo(b.GetProperty("reward").GetString() ?? "", b.GetProperty("amount").GetInt32(), b.GetProperty("item").GetString() ?? "");
+        promo = "";
+        Sound.Play("win");
+        await Dlg.Alert(this, "ПРОМОКОД ПРИНЯТ", got);
+        Build();
     }
 
     // заморозка — расходник: покупается много раз, но держать можно не больше двух
@@ -193,7 +265,10 @@ public class ShopPage : AdminBase
 
     View ThemeCard(Theme theme)
     {
-        bool owned = Crystals.Owns(theme.Id, theme.Price);
+        var island = Islands.Find(theme.Island);
+        // тема острова: открыта вместе с ним, до этого — замок вместо цены
+        bool closed = !Islands.ThemeOpen(theme);
+        bool owned = !closed && Crystals.Owns(theme.Id, theme.Price);
         bool current = Themes.Find(AppState.P.Theme).Id == theme.Id;
 
         // образец темы: фон, карточка, главная кнопка и акцент
@@ -222,21 +297,38 @@ public class ShopPage : AdminBase
         row.Children.Add(swatch);
         var name = new VerticalStackLayout { Spacing = 1, VerticalOptions = LayoutOptions.Center };
         name.Children.Add(Ui.Text(theme.Name, 15, Pal.Ink, true));
+        if (island != null)
+            name.Children.Add(Ui.Text(island.Soon ? $"Скоро: остров «{island.Name}»"
+                : closed ? $"Откроется на острове «{island.Name}»" : $"Тема острова «{island.Name}»", 11, Pal.Ink2));
         if (theme.Music != null)
             name.Children.Add(Ui.Text("♪ своя музыка в меню", 11, Pal.Ink2));
         Grid.SetColumn(name, 1);
         row.Children.Add(name);
-        var tag = PriceTag(owned, current, theme.Price, "ВКЛЮЧЕНА");
+        View tag;
+        if (closed)
+            tag = new PixelIcon(Icons.Lock, Pal.Ink2, 22, Pal.Paper) { HorizontalOptions = LayoutOptions.Center };
+        else if (island != null && !current)
+            tag = Ui.Text("ОТКРЫТА", 11, Pal.Ink2, true, TextAlignment.Center);
+        else
+            tag = PriceTag(owned, current, theme.Price, "ВКЛЮЧЕНА");
         tag.VerticalOptions = LayoutOptions.Center;
         Grid.SetColumn(tag, 2);
         row.Children.Add(tag);
 
         var card = Ui.Card(row, current ? Pal.Amber : Pal.Paper, 12);
         SemanticProperties.SetDescription(card, $"Тема {theme.Name}, " +
-            (current ? "включена" : owned ? "куплена" : $"цена {theme.Price} {Crystals.Word(theme.Price)}"));
+            (current ? "включена" : closed ? "закрыта" : owned ? "открыта" : $"цена {theme.Price} {Crystals.Word(theme.Price)}"));
         Ui.OnTap(card, async () =>
         {
             if (current) return;
+            if (closed)
+            {
+                Sound.Play("bad");
+                await Dlg.Alert(this, "ЗАКРЫТО", island!.Soon
+                    ? $"Остров «{island.Name}» пока закрыт — тема появится вместе с ним."
+                    : $"Тема откроется вместе с островом «{island.Name}». Пройди уроки предыдущего острова.");
+                return;
+            }
             if (!owned && !await Purchase(this, $"тему «{theme.Name}»", theme.Id, theme.Price, "Она сразу включится.")) return;
             Crystals.UseTheme(theme);
             Sound.Play("ok");

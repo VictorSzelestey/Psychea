@@ -433,9 +433,56 @@ public abstract class BasePage : ContentPage
 
     protected override bool OnBackButtonPressed()
     {
+        if (note != null)
+        {
+            note.TrySetResult();
+            return true;
+        }
         if (isTab || Navigation.NavigationStack.Count <= 1) return base.OnBackButtonPressed();
         _ = Pop();
         return true;
+    }
+
+    TaskCompletionSource? note;
+
+    // открыто сообщение Note: «Назад» закрывает его, а не экран
+    protected bool NoteOpen => note != null;
+
+    // сообщение от манула поверх экрана: затемнение, карточка с манулом, текст и кнопка.
+    // Не системное окно — в стиле приложения. Ждёт кнопку или «Назад»
+    protected async Task Note(string mood, string title, string text, string button = "ПОНЯТНО")
+    {
+        if (note != null) return;
+        var done = note = new TaskCompletionSource();
+
+        var box = new VerticalStackLayout { Spacing = 12 };
+        box.Children.Add(Ui.Mood(mood, 120));
+        box.Children.Add(Ui.Text(title, 18, Pal.Ink, true, TextAlignment.Center));
+        box.Children.Add(Ui.Text(text, 14, Pal.Ink, false, TextAlignment.Center));
+        var ok = new Btn(button, Pal.Violet, Pal.OnAccent, 15);
+        ok.Clicked += (s, e) => done.TrySetResult();
+        box.Children.Add(ok);
+
+        var card = Ui.Card(box, Pal.Paper, 20, 26);
+        card.Shadow = Ui.SoftShadow();
+        card.Margin = new Thickness(24);
+        card.MaximumWidthRequest = 420;
+        card.VerticalOptions = LayoutOptions.Center;
+
+        var dim = new Grid { BackgroundColor = Colors.Black.WithAlpha(0.45f), Opacity = 0 };
+        // нажатия не проходят к экрану под затемнением
+        dim.GestureRecognizers.Add(new TapGestureRecognizer());
+        dim.Children.Add(card);
+        // экран перестроили под сообщением — оно пропало вместе со старым содержимым
+        dim.Unloaded += (s, e) => done.TrySetResult();
+        Root.Children.Add(dim);
+
+        card.Scale = 0.9;
+        await Task.WhenAll(dim.Fade(1, 180), card.Zoom(1, 220, Easing.CubicOut));
+        await done.Task;
+        await dim.Fade(0, 160);
+        Root.Children.Remove(dim);
+        note = null;
     }
 
     void OnResize()
