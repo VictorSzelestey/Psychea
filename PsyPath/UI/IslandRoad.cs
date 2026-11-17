@@ -1,12 +1,15 @@
 namespace PsyPath.UI;
 
 // дорога острова поверх фона темы: картинка road_<Image>.png (ширина к высоте 1:3), по дороге снизу вверх —
-// остановки (знаки разделов и кружки уроков) на равных расстояниях. Над остановкой открывается одна подсказка
+// остановки (знаки разделов и кружки уроков) на равных расстояниях. Если остановки не помещаются с шагом Gap,
+// дорога вытягивается в длину и картинка растягивается. Над остановкой открывается одна подсказка
 public class IslandRoad : ContentView
 {
-    const double Ratio = 3;
+    const double BaseRatio = 3;
     // первая и последняя остановка — не у самого края дороги
     const double From = 0.03, To = 0.97;
+    // наименьшее расстояние между остановками вдоль дороги, в долях ширины: как у Острова ночи с 18 остановками
+    const double Gap = 0.24;
 
     // осевая линия дороги — точки (x, y) в долях ширины и высоты картинки сверху вниз,
     // сняты с картинок 1.7.3b по цвету дороги; мосты сшиты прямыми
@@ -45,9 +48,11 @@ public class IslandRoad : ContentView
     readonly float[] line;
     readonly List<(View View, double Size)> stops = new();
     Point[] spots = Array.Empty<Point>();
+    // высота дороги к ширине: у картинки 3, при многих остановках дорога вытягивается в длину вместе с картинкой
+    double ratio = BaseRatio;
     (View Bubble, int Stop)? bubble;
 
-    // у острова без своей дороги — дорога Острова разума
+    // у острова без своей дороги — дорога Острова психологии
     public IslandRoad(string image)
     {
         line = Lines.TryGetValue(image, out var l) ? l : Lines["reason"];
@@ -61,7 +66,7 @@ public class IslandRoad : ContentView
         SizeChanged += (s, e) =>
         {
             if (Width <= 0) return;
-            if (Math.Abs(HeightRequest - Width * Ratio) > 0.5) HeightRequest = Width * Ratio;
+            if (Math.Abs(HeightRequest - Width * ratio) > 0.5) HeightRequest = Width * ratio;
             Arrange();
         };
     }
@@ -71,6 +76,9 @@ public class IslandRoad : ContentView
     {
         stops.Add((stop, size));
         layer.Children.Add(stop);
+        ratio = BaseRatio;
+        while (stops.Count > 1 && Length(ratio) * (To - From) / (stops.Count - 1) < Gap) ratio += 0.1;
+        if (Width > 0) HeightRequest = Width * ratio;
     }
 
     public bool IsOpen(View stop) => bubble is { } b && stops[b.Stop].View == stop;
@@ -100,7 +108,7 @@ public class IslandRoad : ContentView
 
     void Arrange()
     {
-        double w = Width, h = w * Ratio;
+        double w = Width, h = w * ratio;
         if (w <= 0) return;
         // точки идут сверху вниз, а дорога — снизу вверх
         if (spots.Length != stops.Count) spots = Spread(stops.Count).Reverse().ToArray();
@@ -130,7 +138,7 @@ public class IslandRoad : ContentView
         var len = new double[count];
         for (int i = 1; i < count; i++)
         {
-            double dx = line[2 * i] - line[2 * i - 2], dy = (line[2 * i + 1] - line[2 * i - 1]) * Ratio;
+            double dx = line[2 * i] - line[2 * i - 2], dy = (line[2 * i + 1] - line[2 * i - 1]) * ratio;
             len[i] = len[i - 1] + Math.Sqrt(dx * dx + dy * dy);
         }
         var result = new Point[n];
@@ -144,5 +152,17 @@ public class IslandRoad : ContentView
                 line[2 * i - 1] + (line[2 * i + 1] - line[2 * i - 1]) * t);
         }
         return result;
+    }
+
+    // длина осевой линии в долях ширины, если высота дороги — r ширин
+    double Length(double r)
+    {
+        double sum = 0;
+        for (int i = 2; i < line.Length; i += 2)
+        {
+            double dx = line[i] - line[i - 2], dy = (line[i + 1] - line[i - 1]) * r;
+            sum += Math.Sqrt(dx * dx + dy * dy);
+        }
+        return sum;
     }
 }

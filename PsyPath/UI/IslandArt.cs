@@ -104,7 +104,7 @@ class DecorDrawable(string kind, int variant, float circle) : IDrawable
         }
     }
 
-    // Остров разума: сиреневые горы со снегом, розовые кристаллы, цветы и трава
+    // Остров психологии: сиреневые горы со снегом, розовые кристаллы, цветы и трава
     void Reason(ICanvas canvas, float cx, float cy, float r)
     {
         var pink = Color.FromArgb("#F27BB8");

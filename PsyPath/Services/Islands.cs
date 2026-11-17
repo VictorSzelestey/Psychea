@@ -14,8 +14,8 @@ public static class Islands
 {
     public static readonly Island[] All =
     {
-        new(1, "Остров разума", "reason", new[] { 1, 2 }, "lilac", new Rect(0.022, 0.014, 0.44, 0.445), "crystal"),
-        new(2, "Джунгли психики", "jungle", new[] { 13, 14 }, "jungle", new Rect(0.538, 0.006, 0.44, 0.444), "vine"),
+        new(1, "Остров психологии", "reason", new[] { 1, 2, 13, 14 }, "lilac", new Rect(0.022, 0.014, 0.44, 0.445), "crystal"),
+        new(2, "Джунгли физиологии", "jungle", new[] { 17, 18, 19 }, "jungle", new Rect(0.538, 0.006, 0.44, 0.444), "vine"),
         new(3, "Остров ночи", "night", new[] { 15, 16 }, "cosmo", new Rect(0.018, 0.508, 0.452, 0.455), "star"),
         new(4, "Астрал", "astral", Array.Empty<int>(), "astral", new Rect(0.56, 0.536, 0.412, 0.412), "gold", Soon: true)
     };
