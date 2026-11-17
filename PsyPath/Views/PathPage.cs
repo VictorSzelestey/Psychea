@@ -242,6 +242,8 @@ public class PathPage : DataPage
     View Road(Island island, Dictionary<string, LessonState> states, int level)
     {
         var road = new IslandRoad(island.Image);
+        // сплошная местность выходит на боковые поля страницы, до краёв экрана
+        if (road.FullWidth) road.Margin = new Thickness(-18, 0);
         (View Stop, Func<View> Card)? open = null;
         int place = 0;
         foreach (var sec in Islands.SectionsOf(island))

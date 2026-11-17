@@ -19,9 +19,9 @@ using var metadata = JsonDocument.Parse(json);
 Check(metadata.RootElement.GetProperty("version").GetString() == AppInfo.Current.Version.ToString(), "bundled release matches application version");
 using var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "version.json")));
 Check(manifest.RootElement.GetRawText() == metadata.RootElement.GetRawText(), "public manifest matches bundled release history");
-Check(notes.Count == 7 && notes[0].Version == installedVersion, "offline history starts with installed release");
+Check(notes.Count == metadata.RootElement.GetProperty("history").GetArrayLength() + 1 && notes[0].Version == installedVersion, "offline history includes every release and starts with installed release");
 Check(notes[0].Date == DateOnly.ParseExact(metadata.RootElement.GetProperty("date").GetString()!, "yyyy-MM-dd"), "release date is preserved");
-Check(notes[0].Changes.Count == 5 && notes[0].Changes.Any(x => x.Contains("153")), "new release includes lesson theory and release notes");
+Check(notes[0].Changes.Count > 0 && notes[0].Changes.SequenceEqual(metadata.RootElement.GetProperty("changelog").EnumerateArray().Select(x => x.GetString()!)), "latest release includes every published change");
 Check(notes.Any(n => n.Version == new Version(1, 5, 2) && n.Changes.Any(x => x.Contains("менеджер", StringComparison.OrdinalIgnoreCase))), "manager release remains in history");
 Check(notes.Any(n => n.Version == new Version(1, 5, 3) && n.Changes.Any(x => x.Contains("карточка", StringComparison.OrdinalIgnoreCase))), "share-card release remains in history");
 Check(notes.Any(n => n.Version == new Version(1, 5, 1) && n.Changes.Any(x => x.Contains("синхронизации"))), "previous crash-fix release remains in history");
@@ -69,6 +69,11 @@ public static class FileSystem
 {
     public static string CacheDirectory => Path.GetTempPath();
     public static Task<Stream> OpenAppPackageFileAsync(string name) => Task.FromResult<Stream>(File.OpenRead(Path.Combine(AppContext.BaseDirectory, name)));
+}
+public static class Preferences
+{
+    public static TestPreferences Default { get; } = new();
+    public sealed class TestPreferences { public void Remove(string key) { } }
 }
 public record ReadOnlyFile(string Path, string ContentType);
 public record OpenFileRequest(string Title, ReadOnlyFile File);

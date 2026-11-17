@@ -2,7 +2,7 @@ namespace PsyPath.UI;
 
 // дорога острова поверх фона темы: картинка road_<Image>.png (ширина к высоте 1:3), по дороге снизу вверх —
 // остановки (знаки разделов и кружки уроков) на равных расстояниях. Если остановки не помещаются с шагом Gap,
-// дорога вытягивается в длину и картинка растягивается. Над остановкой открывается одна подсказка
+// добавляется следующий участок в исходных пропорциях. Над остановкой открывается одна подсказка
 public class IslandRoad : ContentView
 {
     const double BaseRatio = 3;
@@ -12,7 +12,7 @@ public class IslandRoad : ContentView
     const double Gap = 0.24;
 
     // осевая линия дороги — точки (x, y) в долях ширины и высоты картинки сверху вниз,
-    // сняты с картинок 1.7.3b по цвету дороги; мосты сшиты прямыми
+    // сняты с картинок 1.7.3b по цвету дороги, у джунглей — с картинки во всю ширину (output/4islands/full-bleed); мосты сшиты прямыми
     static readonly Dictionary<string, float[]> Lines = new()
     {
         ["reason"] = new[]
@@ -26,12 +26,12 @@ public class IslandRoad : ContentView
         },
         ["jungle"] = new[]
         {
-            0.625f, 0.1316f, 0.569f, 0.1537f, 0.648f, 0.1696f, 0.629f, 0.198f, 0.538f, 0.2078f, 0.443f, 0.2131f, 0.348f, 0.2195f, 0.261f, 0.2329f,
-            0.24f, 0.2617f, 0.302f, 0.2844f, 0.394f, 0.2933f, 0.489f, 0.2991f, 0.583f, 0.3062f, 0.671f, 0.3192f, 0.726f, 0.3446f, 0.696f, 0.374f,
-            0.616f, 0.3914f, 0.523f, 0.4009f, 0.43f, 0.4092f, 0.339f, 0.4199f, 0.259f, 0.4374f, 0.207f, 0.4641f, 0.227f, 0.4913f, 0.315f, 0.5045f,
-            0.407f, 0.5146f, 0.501f, 0.5197f, 0.597f, 0.5222f, 0.686f, 0.5346f, 0.768f, 0.551f, 0.785f, 0.5791f, 0.707f, 0.5974f, 0.621f, 0.6122f,
-            0.536f, 0.6274f, 0.517f, 0.6463f, 0.56f, 0.6723f, 0.481f, 0.6886f, 0.387f, 0.6957f, 0.296f, 0.7061f, 0.222f, 0.7262f, 0.213f, 0.7569f,
-            0.284f, 0.7778f, 0.377f, 0.7864f, 0.471f, 0.7934f, 0.541f, 0.8124f, 0.515f, 0.843f, 0.449f, 0.8654f, 0.358f, 0.8755f, 0.262f, 0.8796f
+            0.616f, 0.1293f, 0.581f, 0.1529f, 0.644f, 0.1702f, 0.629f, 0.1979f, 0.538f, 0.2075f, 0.443f, 0.2130f, 0.348f, 0.2197f, 0.260f, 0.2326f,
+            0.219f, 0.2636f, 0.302f, 0.2842f, 0.394f, 0.2934f, 0.489f, 0.2995f, 0.582f, 0.3072f, 0.670f, 0.3196f, 0.733f, 0.3442f, 0.701f, 0.3753f,
+            0.616f, 0.3914f, 0.523f, 0.4008f, 0.430f, 0.4092f, 0.339f, 0.4198f, 0.257f, 0.4367f, 0.203f, 0.4640f, 0.249f, 0.4847f, 0.313f, 0.5055f,
+            0.405f, 0.5180f, 0.502f, 0.5156f, 0.596f, 0.5232f, 0.685f, 0.5351f, 0.763f, 0.5522f, 0.791f, 0.5799f, 0.713f, 0.6002f, 0.609f, 0.6045f,
+            0.524f, 0.6242f, 0.531f, 0.6453f, 0.568f, 0.6732f, 0.481f, 0.6889f, 0.388f, 0.6971f, 0.298f, 0.7074f, 0.219f, 0.7256f, 0.210f, 0.7572f,
+            0.284f, 0.7780f, 0.376f, 0.7873f, 0.468f, 0.7955f, 0.541f, 0.8124f, 0.532f, 0.8462f, 0.452f, 0.8670f, 0.358f, 0.8752f, 0.263f, 0.8809f
         },
         ["night"] = new[]
         {
@@ -44,29 +44,35 @@ public class IslandRoad : ContentView
         }
     };
 
+    // дороги, нарисованные сплошной местностью без краёв острова: их кладут во всю ширину экрана
+    static readonly HashSet<string> FullBleed = new() { "jungle" };
+
     readonly AbsoluteLayout layer = new();
     readonly float[] line;
+    readonly string image;
+    readonly List<Image> pictures = new();
     readonly List<(View View, double Size)> stops = new();
     Point[] spots = Array.Empty<Point>();
-    // высота дороги к ширине: у картинки 3, при многих остановках дорога вытягивается в длину вместе с картинкой
-    double ratio = BaseRatio;
+    int segments = 1;
+    readonly int capacity;
+    double Ratio => BaseRatio * segments;
     (View Bubble, int Stop)? bubble;
+
+    public bool FullWidth { get; }
 
     // у острова без своей дороги — дорога Острова психологии
     public IslandRoad(string image)
     {
+        FullWidth = FullBleed.Contains(image);
         line = Lines.TryGetValue(image, out var l) ? l : Lines["reason"];
-        var picture = new Image { Source = $"road_{(Lines.ContainsKey(image) ? image : "reason")}.png", Aspect = Aspect.Fill };
-        AbsoluteLayout.SetLayoutFlags(picture, Microsoft.Maui.Layouts.AbsoluteLayoutFlags.All);
-        AbsoluteLayout.SetLayoutBounds(picture, new Rect(0, 0, 1, 1));
-        // нажатие мимо остановок закрывает подсказку
-        Ui.OnTap(picture, Hide);
-        layer.Children.Add(picture);
+        this.image = Lines.ContainsKey(image) ? image : "reason";
+        capacity = Math.Max(2, (int)Math.Floor(Length() * (To - From) / Gap) + 1);
+        UpdatePictures();
         Content = layer;
         SizeChanged += (s, e) =>
         {
             if (Width <= 0) return;
-            if (Math.Abs(HeightRequest - Width * ratio) > 0.5) HeightRequest = Width * ratio;
+            if (Math.Abs(HeightRequest - Width * Ratio) > 0.5) HeightRequest = Width * Ratio;
             Arrange();
         };
     }
@@ -76,9 +82,36 @@ public class IslandRoad : ContentView
     {
         stops.Add((stop, size));
         layer.Children.Add(stop);
-        ratio = BaseRatio;
-        while (stops.Count > 1 && Length(ratio) * (To - From) / (stops.Count - 1) < Gap) ratio += 0.1;
-        if (Width > 0) HeightRequest = Width * ratio;
+        int needed = Math.Max(1, (stops.Count + capacity - 1) / capacity);
+        if (needed != segments)
+        {
+            segments = needed;
+            UpdatePictures();
+        }
+        spots = Array.Empty<Point>();
+        if (Width > 0)
+        {
+            HeightRequest = Width * Ratio;
+            Arrange();
+        }
+    }
+
+    void UpdatePictures()
+    {
+        while (pictures.Count < segments)
+        {
+            var picture = new Image { Source = $"road_{image}.png", Aspect = Aspect.AspectFit };
+            // картинки всегда под остановками и открытой подсказкой
+            layer.Children.Insert(pictures.Count, picture);
+            pictures.Add(picture);
+            Ui.OnTap(picture, Hide);
+        }
+        for (int i = 0; i < pictures.Count; i++)
+        {
+            AbsoluteLayout.SetLayoutFlags(pictures[i], Microsoft.Maui.Layouts.AbsoluteLayoutFlags.All);
+            // пропорциональная позиция MAUI — доля свободного места, а не высоты родителя
+            AbsoluteLayout.SetLayoutBounds(pictures[i], new Rect(0, segments == 1 ? 0 : (double)i / (segments - 1), 1, 1d / segments));
+        }
     }
 
     public bool IsOpen(View stop) => bubble is { } b && stops[b.Stop].View == stop;
@@ -108,10 +141,10 @@ public class IslandRoad : ContentView
 
     void Arrange()
     {
-        double w = Width, h = w * ratio;
+        double w = Width, h = w * Ratio;
         if (w <= 0) return;
         // точки идут сверху вниз, а дорога — снизу вверх
-        if (spots.Length != stops.Count) spots = Spread(stops.Count).Reverse().ToArray();
+        if (spots.Length != stops.Count) spots = Spread().Reverse().ToArray();
         for (int i = 0; i < stops.Count; i++)
         {
             var (view, size) = stops[i];
@@ -131,36 +164,38 @@ public class IslandRoad : ContentView
         }
     }
 
-    // n точек на равных расстояниях вдоль дороги, длина считается в пропорциях картинки
-    Point[] Spread(int n)
+    // стабильные места на каждом участке; заполняем снизу, добавление уроков не сдвигает старые остановки
+    Point[] Spread()
     {
         int count = line.Length / 2;
         var len = new double[count];
         for (int i = 1; i < count; i++)
         {
-            double dx = line[2 * i] - line[2 * i - 2], dy = (line[2 * i + 1] - line[2 * i - 1]) * ratio;
+            double dx = line[2 * i] - line[2 * i - 2], dy = (line[2 * i + 1] - line[2 * i - 1]) * BaseRatio;
             len[i] = len[i - 1] + Math.Sqrt(dx * dx + dy * dy);
         }
-        var result = new Point[n];
-        for (int k = 0; k < n; k++)
+        var result = new Point[stops.Count];
+        for (int k = 0; k < stops.Count; k++)
         {
-            double at = len[^1] * (n == 1 ? From : From + (To - From) * k / (n - 1));
+            int slot = segments * capacity - stops.Count + k;
+            int segment = slot / capacity;
+            double at = len[^1] * (From + (To - From) * (slot % capacity) / (capacity - 1));
             int i = 1;
             while (i < count - 1 && len[i] < at) i++;
             double t = len[i] == len[i - 1] ? 0 : (at - len[i - 1]) / (len[i] - len[i - 1]);
             result[k] = new Point(line[2 * i - 2] + (line[2 * i] - line[2 * i - 2]) * t,
-                line[2 * i - 1] + (line[2 * i + 1] - line[2 * i - 1]) * t);
+                (segment + line[2 * i - 1] + (line[2 * i + 1] - line[2 * i - 1]) * t) / segments);
         }
         return result;
     }
 
-    // длина осевой линии в долях ширины, если высота дороги — r ширин
-    double Length(double r)
+    // длина осевой линии в долях ширины при исходных пропорциях картинки
+    double Length()
     {
         double sum = 0;
         for (int i = 2; i < line.Length; i += 2)
         {
-            double dx = line[i] - line[i - 2], dy = (line[i + 1] - line[i - 1]) * r;
+            double dx = line[i] - line[i - 2], dy = (line[i + 1] - line[i - 1]) * BaseRatio;
             sum += Math.Sqrt(dx * dx + dy * dy);
         }
         return sum;
