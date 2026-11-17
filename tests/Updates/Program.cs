@@ -22,6 +22,7 @@ Check(manifest.RootElement.GetRawText() == metadata.RootElement.GetRawText(), "p
 Check(notes.Count == metadata.RootElement.GetProperty("history").GetArrayLength() + 1 && notes[0].Version == installedVersion, "offline history includes every release and starts with installed release");
 Check(notes[0].Date == DateOnly.ParseExact(metadata.RootElement.GetProperty("date").GetString()!, "yyyy-MM-dd"), "release date is preserved");
 Check(notes[0].Changes.Count > 0 && notes[0].Changes.SequenceEqual(metadata.RootElement.GetProperty("changelog").EnumerateArray().Select(x => x.GetString()!)), "latest release includes every published change");
+Check(notes.SelectMany(n => n.Changes).All(x => !x.Contains("???") && !x.Contains('\uFFFD')), "release notes preserve readable text without encoding replacement characters");
 Check(notes.Any(n => n.Version == new Version(1, 5, 2) && n.Changes.Any(x => x.Contains("менеджер", StringComparison.OrdinalIgnoreCase))), "manager release remains in history");
 Check(notes.Any(n => n.Version == new Version(1, 5, 3) && n.Changes.Any(x => x.Contains("карточка", StringComparison.OrdinalIgnoreCase))), "share-card release remains in history");
 Check(notes.Any(n => n.Version == new Version(1, 5, 1) && n.Changes.Any(x => x.Contains("синхронизации"))), "previous crash-fix release remains in history");
