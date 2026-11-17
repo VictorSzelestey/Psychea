@@ -6,6 +6,7 @@ namespace PsyPath.UI;
 public class Btn : ContentView
 {
     readonly Border top;
+    readonly Lifted g;
     readonly Label label;
     bool enabled = true;
 
@@ -18,11 +19,8 @@ public class Btn : ContentView
 
         top = Ui.Card(label, fill, 13, 24);
         top.StrokeThickness = 0;
-        top.Shadow = Ui.SoftShadow();
 
-        // нижний отступ — место под тень
-        var g = new Grid { Padding = new Thickness(0, 0, 0, 4) };
-        g.Children.Add(top);
+        g = new Lifted(top, 24);
         Content = g;
 
         var tap = new TapGestureRecognizer();
@@ -50,6 +48,7 @@ public class Btn : ContentView
         {
             enabled = value;
             top.Opacity = value ? 1 : 0.45;
+            g.Shade.Opacity = top.Opacity;
         }
     }
 
@@ -131,6 +130,11 @@ public class Heading : Grid
 // холмы и облака за содержимым экрана
 class BackdropDrawable : IDrawable
 {
+    // гамма джунглей: лайм, олива и тёмная зелень. В приложении их можно взять из темы (Pal.Ink, Pal.Ink2)
+    static readonly Color Lime = Color.FromArgb("#95C716");
+    static readonly Color Olive = Color.FromArgb("#506322");
+    static readonly Color Forest = Color.FromArgb("#22481F");
+
     public void Draw(ICanvas canvas, RectF rect)
     {
         float w = rect.Width, h = rect.Height;
@@ -143,27 +147,46 @@ class BackdropDrawable : IDrawable
             canvas.FillCircle(w * 0.84f, 70, 54);
             canvas.FillCircle(w * 0.62f, 90, 36);
             canvas.FillCircle(w, 100, 46);
-            canvas.FillCircle(-6, h * 0.46f, 44);
-            canvas.FillCircle(w * 0.14f, h * 0.48f, 30);
-            canvas.FillRoundedRectangle(-20, h * 0.48f, w * 0.34f, 34, 17);
+            // в джунглях левое облако выше на 15% экрана
+            float cloud = Pal.Scene == "jungle" ? h * 0.15f : 0;
+            canvas.FillCircle(-6, h * 0.46f - cloud, 44);
+            canvas.FillCircle(w * 0.14f, h * 0.48f - cloud, 30);
+            canvas.FillRoundedRectangle(-20, h * 0.48f - cloud, w * 0.34f, 34, 17);
         }
 
         float top = h * 0.74f;
         switch (Pal.Scene)
         {
             case "jungle":
+                Lianas(canvas, w, h);
                 Jungle(canvas, w, h, top);
                 break;
             case "astral":
                 Temple(canvas, w, h, top);
                 break;
+            case "night":
+                NightMountains(canvas, w, h, top);
+                break;
             default:
                 Mountains(canvas, w, h, top);
                 if (Pal.Scene == "crystal") Crystals(canvas, w, top);
-                if (Pal.Scene == "night") Waterfall(canvas, w, top);
                 break;
         }
         Hill(canvas, w, h, h * 0.86f, Pal.Hill);
+
+        // передний план — поверх холма
+        switch (Pal.Scene)
+        {
+            case "jungle":
+                JungleFront(canvas, w, h);
+                break;
+            case "night":
+                River(canvas, w, h, top);
+                break;
+            case "crystal":
+                HillCrystals(canvas, w, h);
+                break;
+        }
     }
 
     // пейзажи островов — в тонах фона, без ярких цветов: они не спорят с карточками
@@ -177,6 +200,25 @@ class BackdropDrawable : IDrawable
         Shard(canvas, w * 0.36f, top + 58, 9, 36, 14, dark, light);
         Shard(canvas, w * 0.74f, top + 52, 11, 46, 8, dark, light);
         Shard(canvas, w * 0.69f, top + 54, 7, 26, -16, dark, light);
+    }
+
+    // по ближнему холму рассыпаны кристаллы: группы по два-три и одиночные, крупные ближе к краям
+    static void HillCrystals(ICanvas canvas, float w, float h)
+    {
+        var dark = Pal.HillFar.AddLuminosity(-0.07f);
+        var violet = Pal.Amber;
+        var light = Pal.Hill.AddLuminosity(0.03f);
+        (float X, float Y, float HalfW, float Height, float Angle, bool Violet)[] shards =
+        {
+            (0.07f, 0.965f, 12, 52, -12, false), (0.13f, 0.975f, 8, 30, 16, true), (0.02f, 0.985f, 7, 24, -28, true),
+            (0.27f, 0.925f, 6, 22, -8, true), (0.31f, 0.93f, 4, 13, 20, false),
+            (0.45f, 0.99f, 9, 34, 6, false), (0.5f, 0.995f, 6, 20, 26, true), (0.41f, 1.0f, 5, 16, -24, true),
+            (0.62f, 0.94f, 5, 18, -14, false),
+            (0.79f, 0.975f, 11, 44, 10, true), (0.74f, 0.985f, 7, 26, -18, false), (0.84f, 0.99f, 6, 18, 30, false),
+            (0.95f, 0.925f, 8, 30, -6, false), (0.99f, 0.93f, 5, 16, 22, true),
+        };
+        foreach (var s in shards)
+            Shard(canvas, w * s.X, h * s.Y, s.HalfW, s.Height, s.Angle, s.Violet ? violet : dark, light);
     }
 
     static void Shard(ICanvas canvas, float x, float y, float halfW, float height, float angle, Color body, Color face)
@@ -204,43 +246,176 @@ class BackdropDrawable : IDrawable
         canvas.RestoreState();
     }
 
-    // Джунгли психики: вместо гор — кроны деревьев и пальмы
+    static Color Mix(Color a, Color b, float t) =>
+        new(a.Red + (b.Red - a.Red) * t, a.Green + (b.Green - a.Green) * t, a.Blue + (b.Blue - a.Blue) * t);
+
+    static PointF Bezier(PointF a, PointF b, PointF c, PointF d, float t)
+    {
+        float u = 1 - t;
+        return new(u * u * u * a.X + 3 * u * u * t * b.X + 3 * u * t * t * c.X + t * t * t * d.X,
+                   u * u * u * a.Y + 3 * u * u * t * b.Y + 3 * u * t * t * c.Y + t * t * t * d.Y);
+    }
+
+    // лист вдоль оси x от черенка (0, 0); bend > 0 — кончик клонится вниз
+    static void Leaf(ICanvas canvas, float x, float y, float len, float wid, float angle, Color fill,
+        Color? rib = null, float bend = 0, int veins = 0)
+    {
+        canvas.SaveState();
+        canvas.Translate(x, y);
+        canvas.Rotate(angle);
+        float b = bend * len;
+        var p = new PathF();
+        p.MoveTo(0, 0);
+        p.CurveTo(len * 0.25f, -wid + b * 0.2f, len * 0.65f, -wid * 0.8f + b * 0.7f, len, b);
+        p.CurveTo(len * 0.65f, wid * 0.8f + b * 0.7f, len * 0.25f, wid + b * 0.2f, 0, 0);
+        p.Close();
+        canvas.FillColor = fill;
+        canvas.FillPath(p);
+        if (rib is Color r)
+        {
+            canvas.StrokeColor = r;
+            canvas.StrokeLineCap = LineCap.Round;
+            canvas.StrokeSize = Math.Max(1f, wid * 0.07f);
+            var m = new PathF();
+            m.MoveTo(0, 0);
+            m.QuadTo(len * 0.5f, b * 0.45f, len * 0.9f, b * 0.9f);
+            canvas.DrawPath(m);
+            canvas.StrokeSize = Math.Max(0.8f, wid * 0.04f);
+            for (int i = 1; i <= veins; i++)
+            {
+                float t = i / (veins + 1f), vx = len * t * 0.9f, vy = b * t * t * 0.9f;
+                float reach = wid * 0.75f * (1 - t * 0.6f);
+                canvas.DrawLine(vx, vy, vx + reach * 0.7f, vy - reach);
+                canvas.DrawLine(vx, vy, vx + reach * 0.7f, vy + reach);
+            }
+        }
+        canvas.RestoreState();
+    }
+
+    // лиана: стебель-кривая, вдоль неё листочки попеременно с двух сторон
+    static void Vine(ICanvas canvas, PointF a, PointF b, PointF c, PointF d, int leaves, float leaf)
+    {
+        canvas.StrokeColor = Olive;
+        canvas.StrokeSize = 2.2f;
+        canvas.StrokeLineCap = LineCap.Round;
+        var stem = new PathF();
+        stem.MoveTo(a);
+        stem.CurveTo(b, c, d);
+        canvas.DrawPath(stem);
+        for (int i = 1; i <= leaves; i++)
+        {
+            float t = i / (leaves + 0.5f);
+            var p = Bezier(a, b, c, d, t);
+            var q = Bezier(a, b, c, d, t + 0.01f);
+            float dir = MathF.Atan2(q.Y - p.Y, q.X - p.X) * 180 / MathF.PI;
+            bool left = i % 2 == 0;
+            Leaf(canvas, p.X, p.Y, leaf, leaf * 0.42f, dir + (left ? -50 : 50), i % 3 == 0 ? Olive : Lime, bend: left ? -0.1f : 0.1f);
+        }
+        // на конце — пара листьев
+        Leaf(canvas, d.X, d.Y, leaf * 1.2f, leaf * 0.48f, 60, Lime, bend: 0.1f);
+        Leaf(canvas, d.X, d.Y, leaf * 1.2f, leaf * 0.48f, 120, Olive, bend: -0.1f);
+    }
+
+    // Джунгли психики: лианы свисают с верхних углов по краям экрана, середина сверху свободна под карточки
+    static void Lianas(ICanvas canvas, float w, float h)
+    {
+        // провисшая петля между краем и верхом
+        Vine(canvas, new(-4, h * 0.05f), new(30, h * 0.2f), new(w * 0.24f, h * 0.15f), new(w * 0.3f, -4), 9, 11);
+        Vine(canvas, new(16, -4), new(-8, h * 0.14f), new(36, h * 0.24f), new(18, h * 0.38f), 12, 12);
+        Vine(canvas, new(52, -4), new(60, h * 0.08f), new(40, h * 0.15f), new(50, h * 0.22f), 7, 10);
+
+        Vine(canvas, new(w + 4, h * 0.07f), new(w - 34, h * 0.19f), new(w * 0.78f, h * 0.12f), new(w * 0.72f, -4), 8, 11);
+        Vine(canvas, new(w - 20, -4), new(w + 4, h * 0.12f), new(w - 44, h * 0.2f), new(w - 26, h * 0.31f), 10, 12);
+        Vine(canvas, new(w - 58, -4), new(w - 66, h * 0.07f), new(w - 46, h * 0.12f), new(w - 54, h * 0.17f), 6, 10);
+
+        // крупные листья в верхних углах, из-за края экрана
+        Leaf(canvas, -14, -10, 58, 16, 58, Forest, Olive, 0.08f);
+        Leaf(canvas, -10, -14, 54, 14, 28, Olive, Lime, 0.1f);
+        Leaf(canvas, 4, -12, 42, 11, 80, Lime, Olive, -0.06f);
+        Leaf(canvas, w + 14, -10, 58, 16, 122, Forest, Olive, -0.08f);
+        Leaf(canvas, w + 10, -14, 54, 14, 152, Olive, Lime, -0.1f);
+        Leaf(canvas, w - 4, -12, 42, 11, 100, Lime, Olive, 0.06f);
+    }
+
+    // дальний план — дымка: высокие тонкие стволы и кроны в цвете фона, ближе — бананы и пальмы
     static void Jungle(ICanvas canvas, float w, float h, float top)
     {
-        var tree = Pal.HillFar;
-        var trunk = Pal.HillFar.AddLuminosity(-0.08f);
+        var leafy = Mix(Lime, Olive, 0.5f);
+        var far = Mix(Pal.Bg, leafy, 0.14f);
+        var farTrunk = Mix(Pal.Bg, leafy, 0.22f);
         var ground = new PathF();
         ground.MoveTo(0, h);
-        ground.LineTo(0, top + 40);
-        ground.CurveTo(w * 0.3f, top + 20, w * 0.6f, top + 50, w, top + 30);
+        ground.LineTo(0, top + 30);
+        ground.CurveTo(w * 0.3f, top + 10, w * 0.6f, top + 40, w, top + 20);
         ground.LineTo(w, h);
         ground.Close();
-        canvas.FillColor = tree;
+        canvas.FillColor = far;
         canvas.FillPath(ground);
 
-        (float X, float Size, bool Palm)[] trees =
+        (float X, float Height, float Crown)[] trees =
         {
-            (0.03f, 1.0f, false), (0.17f, 0.8f, true), (0.31f, 1.15f, false), (0.47f, 0.75f, false),
-            (0.6f, 1.0f, true), (0.76f, 1.2f, false), (0.92f, 0.85f, true)
+            (0.06f, 150, 30), (0.2f, 120, 24), (0.33f, 168, 34), (0.47f, 110, 22),
+            (0.6f, 158, 30), (0.74f, 128, 26), (0.88f, 172, 34), (0.98f, 118, 22)
         };
         foreach (var t in trees)
         {
-            float x = w * t.X, baseY = top + 42, s = t.Size;
-            if (t.Palm)
-            {
-                Palm(canvas, x, baseY, s, tree, trunk);
-                continue;
-            }
-            canvas.FillColor = trunk;
-            canvas.FillRectangle(x - 4 * s, baseY - 44 * s, 8 * s, 46 * s);
-            canvas.FillColor = tree;
-            canvas.FillCircle(x, baseY - 62 * s, 30 * s);
-            canvas.FillCircle(x - 24 * s, baseY - 48 * s, 22 * s);
-            canvas.FillCircle(x + 24 * s, baseY - 50 * s, 24 * s);
-            // свисающая лиана
-            canvas.StrokeColor = trunk;
-            canvas.StrokeSize = 2;
-            canvas.DrawLine(x + 16 * s, baseY - 40 * s, x + 18 * s, baseY - 14 * s);
+            float x = w * t.X, baseY = top + 34, crownY = baseY - t.Height, c = t.Crown;
+            canvas.FillColor = farTrunk;
+            canvas.FillRectangle(x - 2.5f, crownY, 5, t.Height);
+            canvas.FillColor = far;
+            canvas.FillCircle(x, crownY - c * 0.2f, c);
+            canvas.FillCircle(x - c * 0.9f, crownY + c * 0.25f, c * 0.7f);
+            canvas.FillCircle(x + c * 0.95f, crownY + c * 0.2f, c * 0.75f);
+            canvas.FillRectangle(x - c * 1.6f, crownY + c * 0.2f, c * 3.3f, c * 0.6f);
+        }
+
+        // средний план
+        var mid = Mix(Pal.Bg, Lime, 0.4f);
+        var midDark = Mix(Pal.Bg, leafy, 0.42f);
+        Palm(canvas, w * 0.14f, top + 64, 1.05f, midDark, midDark);
+        Palm(canvas, w * 0.66f, top + 60, 0.9f, midDark, midDark);
+        Banana(canvas, w * 0.32f, top + 70, 0.8f, mid, midDark);
+        Banana(canvas, w * 0.86f, top + 72, 0.95f, mid, midDark);
+        Banana(canvas, w * 0.5f, top + 76, 0.6f, mid, midDark);
+    }
+
+    // банан: несколько широких листьев веером на черенках
+    static void Banana(ICanvas canvas, float x, float baseY, float s, Color leaf, Color rib)
+    {
+        canvas.StrokeColor = rib;
+        canvas.StrokeSize = 3 * s;
+        canvas.StrokeLineCap = LineCap.Round;
+        canvas.DrawLine(x, baseY, x, baseY - 40 * s);
+        foreach (var (a, len, bend) in new[] { (-150f, 70f, -0.18f), (-115f, 82f, -0.1f), (-80f, 86f, 0.06f), (-45f, 78f, 0.14f), (-15f, 64f, 0.2f) })
+            Leaf(canvas, x, baseY - 40 * s, len * s, 15 * s, a, leaf, rib, bend, 4);
+    }
+
+    // ближний план: у нижних углов большие тёмные листья поднимаются по краям, по низу — кусты лайма
+    static void JungleFront(ICanvas canvas, float w, float h)
+    {
+        Leaf(canvas, -30, h + 10, 170, 30, -96, Mix(Olive, Lime, 0.4f), Lime, -0.1f);
+        Leaf(canvas, -24, h + 10, 250, 42, -74, Forest, Olive, 0.12f);
+        Leaf(canvas, -20, h + 6, 200, 36, -50, Olive, Lime, 0.16f);
+        Leaf(canvas, 4, h + 14, 120, 24, -24, Forest, Olive, 0.2f);
+
+        Leaf(canvas, w + 30, h + 10, 164, 30, -84, Mix(Olive, Lime, 0.4f), Lime, 0.1f);
+        Leaf(canvas, w + 24, h + 10, 240, 42, -106, Forest, Olive, -0.12f);
+        Leaf(canvas, w + 20, h + 6, 196, 36, -130, Olive, Lime, -0.16f);
+        Leaf(canvas, w - 4, h + 14, 116, 24, -156, Forest, Olive, -0.2f);
+
+        Bush(canvas, w * 0.3f, h + 4, 58, Lime, Olive);
+        Bush(canvas, w * 0.52f, h + 6, 46, Olive, Lime);
+        Bush(canvas, w * 0.7f, h + 4, 62, Lime, Forest);
+    }
+
+    // куст: узкие листья звездой из одной точки
+    static void Bush(ICanvas canvas, float x, float y, float size, Color main, Color second)
+    {
+        int i = 0;
+        for (float a = -165; a <= -15; a += 18, i++)
+        {
+            float len = size * (i % 2 == 0 ? 1f : 0.78f);
+            Leaf(canvas, x, y, len, len * 0.14f, a, i % 2 == 0 ? main : second, bend: a < -90 ? -0.12f : 0.12f);
         }
     }
 
@@ -271,18 +446,63 @@ class BackdropDrawable : IDrawable
         }
     }
 
-    // Остров ночи: с большой вершины падает водопад
-    static void Waterfall(ICanvas canvas, float w, float top)
+    // Остров ночи: четыре вершины, правые склоны подсвечены планетой — у каждой своя грань
+    static void NightMountains(ICanvas canvas, float w, float h, float top)
     {
-        float x = w * 0.53f;
-        canvas.FillColor = Pal.Gray.WithAlpha(0.45f);
-        canvas.FillRoundedRectangle(x - 7, top - 20, 14, 86, 6);
-        canvas.StrokeColor = Pal.Ink2.WithAlpha(0.35f);
-        canvas.StrokeSize = 1.5f;
-        canvas.DrawLine(x - 2, top - 14, x - 2, top + 60);
-        canvas.DrawLine(x + 3, top - 4, x + 3, top + 52);
-        canvas.FillColor = Pal.Gray.WithAlpha(0.35f);
-        canvas.FillEllipse(x - 22, top + 58, 44, 14);
+        (float X, float Y)[] ridge =
+        {
+            (0, top + 50), (0.12f, top - 12), (0.25f, top + 40), (0.4f, top - 30), (0.5f, top + 12),
+            (0.65f, top - 56), (0.8f, top + 38), (0.92f, top - 6), (1, top + 22)
+        };
+        var path = new PathF();
+        path.MoveTo(0, h);
+        foreach (var p in ridge)
+            path.LineTo(w * p.X, p.Y);
+        path.LineTo(w, h);
+        path.Close();
+        canvas.FillColor = Pal.HillFar;
+        canvas.FillPath(path);
+
+        // Ridge — докуда грань идёт по склону к седловине, Inner и Outer — где её края у подножия
+        // (доля пути от вершины к седловине): края расходятся под разными углами
+        (float Ridge, float Inner, float Outer)[] faces = { (1f, -0.25f, 0.8f), (0.75f, 0.45f, 1.15f), (1f, 0.05f, 0.7f), (1f, 0.55f, 1.4f) };
+        canvas.FillColor = Mix(Pal.HillFar, Pal.Hill, 0.35f);
+        for (int i = 1, f = 0; i < ridge.Length - 1; i += 2, f++)
+        {
+            var (px, py) = (w * ridge[i].X, ridge[i].Y);
+            var (vx, vy) = (w * ridge[i + 1].X, ridge[i + 1].Y);
+            var face = new PathF();
+            face.MoveTo(px, py);
+            face.LineTo(px + (vx - px) * faces[f].Ridge, py + (vy - py) * faces[f].Ridge);
+            face.LineTo(px + (vx - px) * faces[f].Outer, h);
+            face.LineTo(px + (vx - px) * faces[f].Inner, h);
+            face.Close();
+            canvas.FillPath(face);
+        }
+    }
+
+    // река от подножия самой высокой вершины: одним цветом, виляет и расширяется к низу экрана
+    static void River(ICanvas canvas, float w, float h, float top)
+    {
+        float x = w * 0.7f, src = top + 44;
+        int n = 40;
+        var left = new PointF[n + 1];
+        var right = new PointF[n + 1];
+        for (int i = 0; i <= n; i++)
+        {
+            float t = i / (float)n, y = src + (h + 4 - src) * t;
+            float cx = x - 40 * t - 36 * t * MathF.Sin(t * 5f);
+            float half = 0.5f + 20 * t + 72 * t * t;
+            left[i] = new(cx - half, y);
+            right[i] = new(cx + half, y);
+        }
+        var river = new PathF();
+        river.MoveTo(left[0]);
+        for (int i = 1; i <= n; i++) river.LineTo(left[i]);
+        for (int i = n; i >= 0; i--) river.LineTo(right[i]);
+        river.Close();
+        canvas.FillColor = Mix(Pal.Gray, Pal.Hill, 0.25f);
+        canvas.FillPath(river);
     }
 
     // Астрал: облачная гряда и храм с колоннами
@@ -329,14 +549,23 @@ class BackdropDrawable : IDrawable
         }
 
         float px = w * 0.82f, py = 84;
+        canvas.StrokeColor = Pal.Gray;
+        canvas.StrokeSize = 3;
+        canvas.DrawEllipse(px - 66, py - 11, 132, 22);
         canvas.FillColor = Pal.Hill;
         canvas.FillCircle(px, py, 40);
         canvas.FillColor = Pal.HillFar;
         canvas.FillCircle(px - 14, py - 8, 7);
         canvas.FillCircle(px + 12, py + 14, 5);
-        canvas.StrokeColor = Pal.Gray.WithAlpha(0.7f);
-        canvas.StrokeSize = 3;
-        canvas.DrawEllipse(px - 66, py - 11, 132, 22);
+        var front = new PathF();
+        for (int i = 0; i <= 24; i++)
+        {
+            float a = MathF.PI * i / 24;
+            var p = new PointF(px + 66 * MathF.Cos(a), py + 11 * MathF.Sin(a));
+            if (i == 0) front.MoveTo(p); else front.LineTo(p);
+        }
+        canvas.StrokeLineCap = LineCap.Round;
+        canvas.DrawPath(front);
 
         canvas.FillColor = Pal.Hill;
         canvas.FillCircle(w * 0.12f, h * 0.46f, 14);
@@ -408,34 +637,6 @@ public class Burst : GraphicsView
         Margin = new Thickness(-16, -10, 0, 0);
         HorizontalOptions = LayoutOptions.Start;
         VerticalOptions = LayoutOptions.Start;
-        InputTransparent = true;
-    }
-}
-
-// пунктир между соседними кружками пути: x0 и x1 — центры кружков
-class DashDrawable(float x0, float x1) : IDrawable
-{
-    public void Draw(ICanvas canvas, RectF rect)
-    {
-        canvas.StrokeColor = Pal.Gray;
-        canvas.StrokeSize = 3;
-        canvas.StrokeLineCap = LineCap.Round;
-        canvas.StrokeDashPattern = new[] { 2f, 3f };
-        var path = new PathF();
-        path.MoveTo(x0, 0);
-        path.CurveTo(x0, rect.Height * 0.6f, x1, rect.Height * 0.4f, x1, rect.Height);
-        canvas.DrawPath(path);
-    }
-}
-
-public class DashLink : GraphicsView
-{
-    public DashLink(double x0, double x1)
-    {
-        Drawable = new DashDrawable((float)x0, (float)x1);
-        BackgroundColor = Colors.Transparent;
-        HeightRequest = 26;
-        Margin = new Thickness(0, -12);
         InputTransparent = true;
     }
 }
@@ -624,10 +825,9 @@ public abstract class BasePage : ContentPage
         ok.Clicked += (s, e) => done.TrySetResult();
         box.Children.Add(ok);
 
-        var card = Ui.Card(box, Pal.Paper, 20, 26);
-        card.Shadow = Ui.SoftShadow();
-        card.Margin = new Thickness(24);
-        card.MaximumWidthRequest = 420;
+        var card = new Lifted(Ui.Card(box, Pal.Paper, 20, 26), 26);
+        card.Margin = new Thickness(19, 22, 19, 15);
+        card.MaximumWidthRequest = 430;
         card.VerticalOptions = LayoutOptions.Center;
 
         var dim = new Grid { BackgroundColor = Colors.Black.WithAlpha(0.45f), Opacity = 0 };

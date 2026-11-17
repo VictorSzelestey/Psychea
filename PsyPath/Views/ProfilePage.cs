@@ -249,7 +249,7 @@ public class ProfilePage : DataPage
         }
         stack.Children.Add(Ui.Card(ach, Pal.Paper, 12));
 
-        stack.Children.Add(Ui.Text("Психея — учебный тренажёр. Это не клиническая диагностика. Результаты опросников носят учебный характер.", 11, Pal.Ink2));
+        stack.Children.Add(Ui.Text("Психея — учебный тренажёр по психологии. Что значит термин или обозначение из урока, можно узнать в справочнике.", 11, Pal.Ink2));
 
         stack.Children.Add(Form.Link("ВЫЙТИ ИЗ АККАУНТА", Pal.Ink2, async () =>
         {

@@ -42,11 +42,10 @@ public static class StreakBurst
         stack.Children.Add(Ui.Text($"До {next} дней — ещё {next - days}", 13, Pal.Ink2, true, TextAlignment.Center));
         stack.Children.Add(Ui.Text("Нажми, чтобы продолжить", 11, Pal.Ink2, false, TextAlignment.Center));
 
-        var card = Ui.Card(stack, Pal.Paper, 24, 24);
-        card.WidthRequest = 290;
+        var card = new Lifted(Ui.Card(stack, Pal.Paper, 24, 24), 24);
+        card.WidthRequest = 300;
         card.HorizontalOptions = LayoutOptions.Center;
         card.VerticalOptions = LayoutOptions.Center;
-        card.Shadow = Ui.SoftShadow();
         SemanticProperties.SetDescription(card, $"Серия {days} дней подряд, плюс {reward} {Crystals.Word(reward)}");
 
         var layer = new Grid { BackgroundColor = Color.FromRgba(0, 0, 0, 0.45) };

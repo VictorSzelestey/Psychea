@@ -18,21 +18,19 @@ public enum LessonState
 // Переход между картой и островом закрывают облака: под ними тема меняется и вкладки собираются заново
 public class PathPage : DataPage
 {
-    // зигзаг: отступ кружка слева; справа строка держит остаток до MaxOffset, чтобы карточка не вылезла за экран
-    static readonly double[] Offsets = { 14, 54, 0, 58, 10, 44 };
-    const double MaxOffset = 58;
-    const double SectionSize = 78;
-    const double LessonSize = 58;
+    // кружок урока на дороге острова, квадрат под него с украшением и ширина знака раздела
+    const double LessonSize = 56;
+    const double StopBox = LessonSize * 1.7;
+    const double SignWidth = 190;
 
     // облака закрыли экран перед сменой острова: новая главная собирается под ними и раскрывает их
     static bool cloudsClosed;
 
     // кнопка текущего раздела; пульсирует, только пока вкладка на экране
     VisualElement? pulsing;
-    // раскрытые разделы переживают пересборку экрана после урока
-    readonly HashSet<int> opened = new();
-    // разделы, которые игрок раскрывал или сворачивал сам: раздел с текущим уроком раскрывается сам только до этого
-    readonly HashSet<int> touched = new();
+    // кружок текущего урока на дороге острова: к нему прокручивается экран, когда приплыли на остров
+    View? currentStop;
+    ScrollView? scroll;
     Clouds? clouds;
     IslandMap? map;
     bool traveling;
@@ -71,6 +69,8 @@ public class PathPage : DataPage
             // экран успевает нарисоваться под облаками; флаг снимается после паузы,
             // иначе въезд вкладки (PlayEnter сразу после Refresh) проявил бы её вместе с облаками с нуля
             await Task.Delay(140);
+            // на острове экран под облаками доезжает до текущего урока
+            if (currentStop != null && scroll != null) await scroll.ScrollToAsync(currentStop, ScrollToPosition.Center, false);
             cloudsClosed = false;
             await clouds.Open();
         }
@@ -119,6 +119,7 @@ public class PathPage : DataPage
         pulsing?.AbortAnimation("pulse");
         pulsing = null;
         map = null;
+        currentStop = null;
 
         int level = AppState.Level;
         var lv = AppState.LevelInfoOf(level);
@@ -175,16 +176,10 @@ public class PathPage : DataPage
             path.Children.Add(IslandHeader(island));
             var fresh = Islands.NotShown();
             if (fresh.Count > 0) path.Children.Add(NewIslandCard(fresh));
-            int place = 0;
-            foreach (var sec in Islands.SectionsOf(island))
-            {
-                if (place > 0) path.Children.Add(new DashLink(SectionCenter(place - 1), SectionCenter(place)));
-                AddSection(path, sec, place, states, level, island.Decor);
-                place++;
-            }
+            path.Children.Add(Road(island, states, level));
         }
 
-        var scroll = new ScrollView { Content = path };
+        scroll = new ScrollView { Content = path };
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);
 
@@ -226,9 +221,7 @@ public class PathPage : DataPage
         back.Clicked += async (s, e) => await Travel(null);
         box.Children.Add(back);
 
-        var card = Ui.Card(box, Pal.Paper, 14, 26);
-        card.Shadow = Ui.SoftShadow();
-        return card;
+        return new Lifted(Ui.Card(box, Pal.Paper, 14, 26), 26);
     }
 
     // остров пройден, а следующий ещё не показан на карте — зовём туда
@@ -244,85 +237,76 @@ public class PathPage : DataPage
         return Ui.Box(box, Pal.Amber, 14);
     }
 
-    static double OffsetOf(int place) => Offsets[place % Offsets.Length];
-
-    static double SectionCenter(int place) => OffsetOf(place) + SectionSize / 2;
-
-    static double LessonCenter(int place) => OffsetOf(place) + LessonSize / 2;
-
-    void AddSection(VerticalStackLayout path, Section sec, int place, Dictionary<string, LessonState> states, int level, string decor)
+    // дорога острова снизу вверх: знак раздела, за ним кружки его уроков.
+    // Нажатие на кружок открывает подсказку с названием урока и кнопкой; у текущего урока она открыта сразу
+    View Road(Island island, Dictionary<string, LessonState> states, int level)
     {
-        var lessonStates = sec.Lessons.Select(l => states[l.Id]).ToList();
-        LessonState state;
-        if (level < AppState.UnlockLevel(sec.Id)) state = LessonState.Locked;
-        else if (lessonStates.Contains(LessonState.Current)) state = LessonState.Current;
-        else if (lessonStates.Count > 0 && lessonStates.All(s => s is LessonState.Done or LessonState.Mastered)) state = LessonState.Done;
-        else state = LessonState.Open;
-
-        if (state == LessonState.Current && !touched.Contains(sec.Id)) opened.Add(sec.Id);
-
-        var lessons = new VerticalStackLayout { Spacing = 14, IsVisible = opened.Contains(sec.Id) };
-        for (int i = 0; i < sec.Lessons.Count; i++)
+        var road = new IslandRoad(island.Image);
+        (View Stop, Func<View> Card)? open = null;
+        int place = 0;
+        foreach (var sec in Islands.SectionsOf(island))
         {
-            if (i > 0) lessons.Children.Add(new DashLink(LessonCenter(i - 1), LessonCenter(i)));
-            lessons.Children.Add(MakeLesson(sec.Lessons[i], i, states[sec.Lessons[i].Id], decor, place));
-        }
-
-        var chevron = Chevron(state == LessonState.Locked);
-        chevron.Rotation = lessons.IsVisible ? 90 : 0;
-
-        int id = sec.Id;
-        int unlock = AppState.UnlockLevel(id);
-        int number = AppState.SectionNumber(id);
-        // счётчик объясняет, почему раздел ещё подсвечен: в нём остались непройденные уроки
-        int passed = sec.Lessons.Count(AppState.IsPassed);
-        string caption = passed > 0 ? $"Раздел {number} · пройдено {passed} из {sec.Lessons.Count}" : $"Раздел {number}";
-        var node = Node(place, SectionSize, caption, sec.Title, state,
-            state == LessonState.Done ? "✓" : number.ToString(), chevron, async () =>
+            road.Add(SectionSign(sec, level), SignWidth);
+            for (int i = 0; i < sec.Lessons.Count; i++)
             {
-                if (state == LessonState.Locked)
+                var lesson = sec.Lessons[i];
+                var state = states[lesson.Id];
+                int index = i;
+                var stop = LessonStop(state, index, island.Decor, place + i + 1);
+                View Card() => LessonCard(sec, lesson, index, state);
+                Ui.OnTap(stop, () =>
                 {
-                    await Dlg.Alert(this, "ЗАКРЫТО", $"Раздел откроется на {unlock} уровне.");
-                    return;
-                }
-                bool show = !lessons.IsVisible;
-                lessons.IsVisible = show;
-                touched.Add(id);
-                if (show) opened.Add(id);
-                else opened.Remove(id);
-                await chevron.Spin(show ? 90 : 0, 160);
-            }, burst: state == LessonState.Current, pulse: state == LessonState.Current, decor: decor, variant: place * 2);
-
-        path.Children.Add(node);
-        path.Children.Add(lessons);
-    }
-
-    View MakeLesson(Lesson lesson, int idx, LessonState state, string decor, int section)
-    {
-        string glyph = state is LessonState.Done or LessonState.Mastered ? "✓" : (idx + 1).ToString();
-        return Node(idx, LessonSize, $"Урок {idx + 1}", lesson.Title, state, glyph, Chevron(state == LessonState.Locked), async () =>
-        {
-            if (state == LessonState.Locked)
-            {
-                await Dlg.Alert(this, "ЗАКРЫТО", "Сначала пройди предыдущие уроки или повысь уровень.");
-                return;
+                    Sound.Play("tap");
+                    if (road.IsOpen(stop)) road.Hide();
+                    else road.Show(stop, Card());
+                });
+                SemanticProperties.SetDescription(stop, $"Урок {index + 1}: {lesson.Title}" + (state == LessonState.Locked ? ", закрыт" : ""));
+                AutomationProperties.SetIsInAccessibleTree(stop, true);
+                road.Add(stop, StopBox);
+                if (state == LessonState.Current) open = (stop, Card);
             }
-            await Push(new LessonPage(lesson));
-        }, decor: decor, variant: idx + section + 1);
+            place += 2;
+        }
+        currentStop = open?.Stop;
+        if (open is { } o) road.Show(o.Stop, o.Card());
+        return road;
     }
 
-    static Label Chevron(bool locked)
+    // знак раздела на дороге: номер и название, у закрытого — уровень, на котором откроется
+    View SectionSign(Section sec, int level)
     {
-        var chevron = Ui.Text("›", 26, locked ? Pal.Ink2 : Pal.Violet, true);
-        chevron.VerticalTextAlignment = TextAlignment.Center;
-        return chevron;
+        int number = AppState.SectionNumber(sec.Id);
+        int unlock = AppState.UnlockLevel(sec.Id);
+        bool locked = level < unlock;
+        int passed = sec.Lessons.Count(AppState.IsPassed);
+        string head = locked ? $"РАЗДЕЛ {number} · С {unlock} УРОВНЯ" :
+            passed == sec.Lessons.Count && passed > 0 ? $"РАЗДЕЛ {number} · ПРОЙДЕН" : $"РАЗДЕЛ {number} · {passed}/{sec.Lessons.Count}";
+
+        var box = new VerticalStackLayout { Spacing = 1 };
+        box.Children.Add(Ui.Text(head, 11, Pal.Ink2, true, TextAlignment.Center));
+        var title = Ui.Text(sec.Title, 13, locked ? Pal.Ink2 : Pal.Ink, true, TextAlignment.Center);
+        title.MaxLines = 2;
+        title.LineBreakMode = LineBreakMode.TailTruncation;
+        box.Children.Add(title);
+
+        var sign = Ui.Card(box, Pal.Paper.WithAlpha(0.94f), 8, 16);
+        sign.Padding = new Thickness(12, 6);
+        sign.Stroke = new SolidColorBrush(locked ? Pal.Gray : Pal.Violet);
+        sign.StrokeThickness = 2;
+        var host = new Grid { WidthRequest = SignWidth, HeightRequest = SignWidth };
+        host.Children.Add(new Lifted(sign, 16) { VerticalOptions = LayoutOptions.Center, InputTransparent = true, CascadeInputTransparent = false });
+        SemanticProperties.SetDescription(host, $"Раздел {number}: {sec.Title}");
+        if (locked) Ui.OnTap(sign, async () => await Dlg.Alert(this, "ЗАКРЫТО", $"Раздел откроется на {unlock} уровне."));
+        else sign.InputTransparent = true;
+        // квадрат выше знака не должен перехватывать нажатия на дорогу и соседние кружки
+        host.InputTransparent = true;
+        host.CascadeInputTransparent = false;
+        return host;
     }
 
-    // кружок на пути и карточка, заходящая под него; decor — украшение кружка на острове
-    View Node(int place, double size, string caption, string title, LessonState state, string glyph, Label chevron, Action tap,
-        bool burst = false, bool pulse = false, string? decor = null, int variant = 0)
+    // кружок урока с украшением острова; текущий пульсирует, рядом искры
+    View LessonStop(LessonState state, int index, string decor, int variant)
     {
-        bool isLocked = state == LessonState.Locked;
         Color fill = state switch
         {
             LessonState.Current => Pal.Violet,
@@ -332,15 +316,14 @@ public class PathPage : DataPage
             _ => Pal.Gray
         };
         Color text = state is LessonState.Current or LessonState.Mastered ? Pal.OnAccent : Pal.Ink;
+        string glyph = state is LessonState.Done or LessonState.Mastered ? "✓" : (index + 1).ToString();
 
         View mark;
-        if (isLocked)
-        {
-            mark = new PixelIcon(Icons.Lock, Pal.OnAccent, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center };
-        }
+        if (state == LessonState.Locked)
+            mark = new PixelIcon(Icons.Lock, Pal.OnAccent, LessonSize * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
         else
         {
-            var label = Ui.Text(glyph, size * 0.36, text, true, TextAlignment.Center);
+            var label = Ui.Text(glyph, LessonSize * 0.36, text, true, TextAlignment.Center);
             // галочки нет в основном шрифте
             if (glyph == "✓") label.FontFamily = "MonoBold";
             label.VerticalTextAlignment = TextAlignment.Center;
@@ -349,51 +332,51 @@ public class PathPage : DataPage
             mark = label;
         }
 
+        // белая кайма отделяет кружок от пёстрой картинки дороги
         var circle = new Border
         {
             Content = mark,
             BackgroundColor = fill,
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(size / 2) },
-            WidthRequest = size,
-            HeightRequest = size,
-            VerticalOptions = LayoutOptions.Center,
-            Shadow = Ui.SoftShadow(Pal.Violet)
+            Stroke = new SolidColorBrush(Colors.White),
+            StrokeThickness = 3,
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(LessonSize / 2) },
+            WidthRequest = LessonSize,
+            HeightRequest = LessonSize,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center
         };
-        if (pulse) pulsing = circle;
+        if (state == LessonState.Current) pulsing = circle;
 
-        var info = new VerticalStackLayout { Spacing = 1, VerticalOptions = LayoutOptions.Center };
-        info.Children.Add(Ui.Text(caption, 12, Pal.Ink2));
-        info.Children.Add(Ui.Text(title, size > LessonSize ? 16 : 14, isLocked ? Pal.Ink2 : Pal.Ink, true));
+        var stop = new Grid { WidthRequest = StopBox, HeightRequest = StopBox };
+        stop.Children.Add(new Decor(decor, variant, LessonSize) { Margin = 0 });
+        // поля тени симметричные: кружок остаётся в центре украшения
+        stop.Children.Add(new Lifted(circle, -1, Pal.Violet, new Thickness(7)) { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center, InputTransparent = true });
+        if (state == LessonState.Current)
+            stop.Children.Add(new Burst { Margin = new Thickness((StopBox - LessonSize) / 2 - 14, (StopBox - LessonSize) / 2 - 8, 0, 0) });
+        return stop;
+    }
 
-        var inner = new Grid
+    // подсказка урока: раздел и номер, название и кнопка; у закрытого — почему закрыт
+    View LessonCard(Section sec, Lesson lesson, int index, LessonState state)
+    {
+        var box = new VerticalStackLayout { Spacing = 6 };
+        box.Children.Add(Ui.Text($"РАЗДЕЛ {AppState.SectionNumber(sec.Id)} · УРОК {index + 1}", 11, Pal.Ink2, true));
+        box.Children.Add(Ui.Text(lesson.Title, 15, Pal.Ink, true));
+        if (state == LessonState.Locked)
+            box.Children.Add(Ui.Text("Сначала пройди предыдущие уроки или повысь уровень.", 13, Pal.Ink2));
+        else
         {
-            ColumnSpacing = 6,
-            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) }
-        };
-        inner.Children.Add(info);
-        Grid.SetColumn(chevron, 1);
-        inner.Children.Add(chevron);
-
-        var card = Ui.Card(inner, Pal.Paper, 12, 22);
-        card.Padding = new Thickness(28, 12, 14, 12);
-        card.Margin = new Thickness(-18, 6, 0, 6);
-        card.VerticalOptions = LayoutOptions.Center;
-        card.Shadow = Ui.SoftShadow();
-        Grid.SetColumn(card, 1);
-
-        double left = OffsetOf(place);
-        var node = new Grid
-        {
-            Margin = new Thickness(left, 0, MaxOffset - left, 0),
-            ColumnDefinitions = { new ColumnDefinition(new GridLength(size)), new ColumnDefinition(GridLength.Star) }
-        };
-        node.Children.Add(card);
-        if (decor != null) node.Children.Add(new Decor(decor, variant, size));
-        node.Children.Add(circle);
-        if (burst) node.Children.Add(new Burst());
-        Ui.OnTap(node, tap);
-        return node;
+            bool again = state is LessonState.Done or LessonState.Mastered;
+            var go = again ? new Btn("ПОВТОРИТЬ", Pal.Paper2, null, 14) : new Btn("▶  НАЧАТЬ", Pal.Violet, Pal.OnAccent, 14);
+            go.Clicked += async (s, e) => await Push(new LessonPage(lesson));
+            box.Children.Add(go);
+        }
+        var card = Ui.Card(box, Pal.Paper, 14, 20);
+        card.Stroke = new SolidColorBrush(Pal.Line);
+        card.StrokeThickness = 1;
+        // нажатие по самой подсказке не уходит в картинку под ней и не закрывает подсказку
+        Ui.OnTap(card, () => { });
+        return new Lifted(card, 20);
     }
 
     View Hud(int level, string levelName)
@@ -550,7 +533,7 @@ public class PathPage : DataPage
     {
         const double CatHeight = 136;
 
-        var text = new VerticalStackLayout { Spacing = 8, Margin = new Thickness(0, 0, 118, 0) };
+        var text = new VerticalStackLayout { Spacing = 8, Margin = new Thickness(0, 0, 128, 8) };
         text.Children.Add(Ui.Text("Изучай психологию вместе с манулом!", 21, Pal.Ink, true));
         text.Children.Add(Ui.Text(current != null ? "Маленькие шаги — большие перемены ♥" : "Ты прошёл всё, что сейчас доступно. Новые острова скоро появятся!", 13, Pal.Ink2));
         var island = current == null ? null : Islands.All.FirstOrDefault(i => Islands.SectionsOf(i).Any(s => s.Lessons.Contains(current)));
@@ -568,13 +551,13 @@ public class PathPage : DataPage
         cat.WidthRequest = CatHeight * 900 / 811;
         cat.HorizontalOptions = LayoutOptions.End;
         cat.VerticalOptions = LayoutOptions.End;
-        cat.Margin = new Thickness(0, 0, -22, -14);
         g.Children.Add(cat);
         g.Children.Add(text);
 
+        // манул прижат к углу, но целиком внутри карточки: отрицательные отступы карточка обрезала по краю
         var card = Ui.Card(g, Pal.Paper, 16, 30);
-        card.Shadow = Ui.SoftShadow();
-        return card;
+        card.Padding = new Thickness(16, 16, 6, 6);
+        return new Lifted(card, 30);
     }
 
     // «работа над ошибками» — только когда есть что повторять

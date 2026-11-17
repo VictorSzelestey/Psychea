@@ -18,7 +18,7 @@ public static class Settings
     // громкость музыки в процентах, 0–100
     public static int MusicVolume
     {
-        get => Preferences.Default.Get("set_music_vol", 60);
+        get => Preferences.Default.Get("set_music_vol", 50);
         set => Preferences.Default.Set("set_music_vol", Math.Clamp(value, 0, 100));
     }
 

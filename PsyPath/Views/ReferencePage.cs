@@ -1,3 +1,4 @@
+using PsyPath.Models;
 using PsyPath.Services;
 using PsyPath.UI;
 
@@ -56,7 +57,7 @@ public class ReferencePage : BasePage
         var stack = new VerticalStackLayout { Padding = new Thickness(18, 4, 18, 28), Spacing = 10 };
         stack.Children.Add(cards);
         stack.Children.Add(listBox);
-        stack.Children.Add(Ui.Text("Учебные материалы. Не клиническая диагностика.", 11, Pal.Ink2));
+        stack.Children.Add(Ui.Text("Здесь можно узнать, что значат термины и обозначения из уроков: ищи по названию или по словам из статьи.", 11, Pal.Ink2));
         var scroll = new ScrollView { Content = stack };
         Grid.SetRow(scroll, 1);
         root.Children.Add(scroll);
@@ -78,10 +79,14 @@ public class ReferencePage : BasePage
     void RebuildList()
     {
         listBox.Children.Clear();
-        string q = (search.Text ?? "").Trim().ToLowerInvariant();
-        var entries = AppState.Reference
-            .Where(e => q.Length == 0 || e.Term.ToLowerInvariant().Contains(q) || e.Short.ToLowerInvariant().Contains(q))
-            .ToList();
+        string q = (search.Text ?? "").Trim();
+        // сначала совпадения в названии и кратком описании, потом — только в тексте статьи
+        bool Head(RefEntry e) => e.Term.Contains(q, StringComparison.OrdinalIgnoreCase) || e.Short.Contains(q, StringComparison.OrdinalIgnoreCase);
+        var entries = q.Length == 0
+            ? AppState.Reference.ToList()
+            : AppState.Reference.Where(Head)
+                .Concat(AppState.Reference.Where(e => !Head(e) && e.Text.Contains(q, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
 
         if (entries.Count == 0)
         {

@@ -22,7 +22,7 @@ public class IslandMap : ContentView
 
     public IslandMap()
     {
-        layer.Children.Add(Place(new Image { Source = "map_sea.jpg", Aspect = Aspect.Fill, InputTransparent = true }, new Rect(0, 0, 1, 1)));
+        layer.Children.Add(Place(new Image { Source = "map_sea.jpg", Aspect = Aspect.AspectFill, InputTransparent = true }, new Rect(0, 0, 1, 1)));
 
         foreach (var island in Islands.All)
         {
@@ -88,10 +88,10 @@ public class IslandMap : ContentView
         {
             Content = layer,
             StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(26) },
-            Shadow = Ui.SoftShadow()
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(26) }
         };
-        Content = frame;
+        // поля тени одинаковые со всех сторон: карта внутри остаётся квадратной
+        Content = new Lifted(frame, 26, pad: new Thickness(6));
         // карта квадратная: высота равна ширине
         SizeChanged += (s, e) =>
         {
@@ -131,16 +131,15 @@ public class IslandMap : ContentView
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center
         };
-        return new Border
+        var badge = new Border
         {
             Content = icon,
             BackgroundColor = soon ? Color.FromArgb("#B9A15C") : Color.FromArgb("#7A6E86"),
             Stroke = new SolidColorBrush(Color.FromArgb("#FFFFFF")),
             StrokeThickness = 3,
-            StrokeShape = new Ellipse(),
-            InputTransparent = true,
-            Shadow = new Shadow { Brush = new SolidColorBrush(Colors.Black), Opacity = 0.25f, Radius = 10, Offset = new Point(0, 4) }
+            StrokeShape = new Ellipse()
         };
+        return new Lifted(badge, -1, Colors.Black, new Thickness(5, 3, 5, 7)) { InputTransparent = true };
     }
 
     void Tap(Island island)

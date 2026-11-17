@@ -34,25 +34,8 @@ public static class Ui
         };
     }
 
-    // мягкая тень: у каждого элемента своя, один объект нельзя вешать на несколько
-    public static Shadow SoftShadow(Color? color = null) => new()
-    {
-        Brush = new SolidColorBrush(color ?? Pal.Ink),
-        Opacity = 0.18f,
-        Radius = 14,
-        Offset = new Point(0, 5)
-    };
-
-    // карточка, приподнятая над фоном; нижний отступ — место под тень
-    public static Grid Box(View content, Color? fill = null, double pad = 14)
-    {
-        var top = Card(content, fill, pad);
-        top.Shadow = SoftShadow();
-
-        var g = new Grid { Padding = new Thickness(0, 0, 0, 4) };
-        g.Children.Add(top);
-        return g;
-    }
+    // карточка, приподнятая над фоном
+    public static Grid Box(View content, Color? fill = null, double pad = 14) => new Lifted(Card(content, fill, pad), 18);
 
 
     // idle — манул спокойно покачивается, пока на экране
@@ -199,5 +182,55 @@ public static class Ui
             box.Children.Add(row);
         }
         return box;
+    }
+}
+
+// элемент с мягкой тенью под ним. Тень рисуется внутри своих полей: Shadow из MAUI на Android выходит за край
+// элемента, а родитель обрезает её по этому краю — под кнопками и карточками оставались прямоугольники.
+// radius < 0 — круг
+public class Lifted : Grid
+{
+    // поля под тень: по бокам и снизу, сверху почти без неё
+    public static readonly Thickness Below = new(5, 2, 5, 9);
+
+    public GraphicsView Shade { get; }
+
+    public Lifted(View body, double radius, Color? color = null, Thickness? pad = null)
+    {
+        var p = pad ?? Below;
+        Padding = p;
+        Shade = new GraphicsView
+        {
+            Drawable = new Drawable(p, radius, color ?? Pal.Ink),
+            InputTransparent = true,
+            BackgroundColor = Colors.Transparent,
+            // холст на всю площадь вместе с полями
+            Margin = new Thickness(-p.Left, -p.Top, -p.Right, -p.Bottom)
+        };
+        Children.Add(Shade);
+        Children.Add(body);
+    }
+
+    // несколько скруглённых слоёв, каждый шире и прозрачнее: к краю полей тень сходит на нет
+    sealed class Drawable(Thickness pad, double radius, Color color) : IDrawable
+    {
+        const int Steps = 8;
+        const float Strength = 0.2f;
+
+        public void Draw(ICanvas canvas, RectF rect)
+        {
+            float w = rect.Width - (float)pad.HorizontalThickness, h = rect.Height - (float)pad.VerticalThickness;
+            if (w <= 0 || h <= 0) return;
+            // тень чуть ниже элемента, как от света сверху
+            float drop = (float)Math.Max(0, (pad.Bottom - pad.Top) / 3);
+            float reach = (float)Math.Max(1, Math.Min(Math.Min(pad.Left, pad.Right), Math.Min(pad.Top + drop, pad.Bottom - drop)));
+            float corner = radius < 0 ? Math.Min(w, h) / 2 : (float)radius;
+            canvas.FillColor = color.WithAlpha(Strength / Steps);
+            for (int i = 1; i <= Steps; i++)
+            {
+                float grow = reach * i / Steps;
+                canvas.FillRoundedRectangle((float)pad.Left - grow, (float)pad.Top + drop - grow, w + grow * 2, h + grow * 2, corner + grow);
+            }
+        }
     }
 }

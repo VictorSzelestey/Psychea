@@ -21,10 +21,11 @@ public static class Themes
         new("lilac", "Сирень", 0,
             C("#E9DFF4"), C("#E0D4EF"), C("#D9CBEB"), C("#FBF5F3"), C("#F1E9F7"), C("#DCCFEB"),
             C("#3D2C63"), C("#5F4E80"), C("#6E4BA6"), C("#CDB8EC"), C("#553A8B"), C("#AE9FC3"), Island: 1, Scene: "crystal"),
-        // пастельный лайм острова «Джунгли психики». Контраст: Ink на Paper 12.0, на Accent 8.7, OnAccent на Primary 5.1
+        // бледный лайм острова «Джунгли психики» в гамме #95C716 / #506322 / #22481F; чистый #95C716 — только в листьях фона (контраст 1.75).
+        // Контраст: Ink на Paper 10.1, на Bg 9.1, на Accent 7.6; Ink2 на Bg 5.8; OnAccent на Primary 6.5; Link на Paper 6.6
         new("jungle", "Джунгли", 0,
-            C("#E3F1D0"), C("#D7EBBF"), C("#CCE4B0"), C("#FAFDF4"), C("#EDF6E1"), C("#CFE3B8"),
-            C("#253A1F"), C("#45603A"), C("#3F7A2A"), C("#C2E39A"), C("#2F6A22"), C("#A3BC93"),
+            C("#EAF3D3"), C("#DDEBBB"), C("#CFE2A3"), C("#FBFDF2"), C("#F0F7DC"), C("#D5E6B0"),
+            C("#22481F"), C("#506322"), C("#506322"), C("#CDE68E"), C("#3B6618"), C("#A6B98A"),
             Music: "music_jungle.mp3", Island: 2, Scene: "jungle"),
         new("mint", "Мята", 150,
             C("#DDF1EA"), C("#D0EADF"), C("#C4E2D5"), C("#F7FBF8"), C("#E6F4EE"), C("#C5E1D5"),

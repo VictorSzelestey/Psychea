@@ -14,14 +14,14 @@ public static class Islands
 {
     public static readonly Island[] All =
     {
-        new(1, "Остров разума", "reason", new[] { 1, 2 }, "lilac", new Rect(0.034, 0.014, 0.437, 0.41), "crystal"),
-        new(2, "Джунгли психики", "jungle", new[] { 13, 14 }, "jungle", new Rect(0.523, 0.01, 0.452, 0.404), "vine"),
-        new(3, "Остров ночи", "night", new[] { 15, 16 }, "cosmo", new Rect(0.024, 0.477, 0.464, 0.481), "star"),
-        new(4, "Астрал", "astral", Array.Empty<int>(), "astral", new Rect(0.548, 0.506, 0.427, 0.443), "gold", Soon: true)
+        new(1, "Остров разума", "reason", new[] { 1, 2 }, "lilac", new Rect(0.022, 0.014, 0.44, 0.445), "crystal"),
+        new(2, "Джунгли психики", "jungle", new[] { 13, 14 }, "jungle", new Rect(0.538, 0.006, 0.44, 0.444), "vine"),
+        new(3, "Остров ночи", "night", new[] { 15, 16 }, "cosmo", new Rect(0.018, 0.508, 0.452, 0.455), "star"),
+        new(4, "Астрал", "astral", Array.Empty<int>(), "astral", new Rect(0.56, 0.536, 0.412, 0.412), "gold", Soon: true)
     };
 
     // манул в лодке посередине карты
-    public static readonly Rect Boat = new(0.413, 0.357, 0.203, 0.227);
+    public static readonly Rect Boat = new(0.398, 0.352, 0.205, 0.241);
 
     // остров, на котором сейчас игрок; null — карта. Не сохраняется: приложение открывается на карте
     public static Island? Active { get; private set; }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using PsyPath.Models;
 using PsyPath.Services;
 using PsyPath.UI;
@@ -14,11 +15,51 @@ public class QuestionnairePage : BasePage
     int index;
     bool locked;
     Beast? beast;
+    // кнопка «◀ НАЗАД» открытого вопроса: системная «Назад» делает то же, а не закрывает опросник
+    Func<Task>? stepBack;
 
     public QuestionnairePage(Questionnaire quiz) : base(true)
     {
         this.quiz = quiz;
+        LoadDraft();
         ShowIntro();
+    }
+
+    // незаконченное прохождение на этом телефоне: номер вопроса, ответы и порядок вариантов.
+    // Опросник закрыли случайно — при следующем входе можно продолжить с того же вопроса
+    sealed record Draft(int Index, List<int> Answers, Dictionary<int, List<int>> Orders);
+
+    string DraftKey => "quiz_draft_" + quiz.Id;
+
+    void LoadDraft()
+    {
+        try
+        {
+            string json = Preferences.Default.Get(DraftKey, "");
+            if (json.Length == 0 || JsonSerializer.Deserialize<Draft>(json) is not { } d) return;
+            // опросник поменяли в админке — старые ответы к нему не подходят
+            int n = quiz.Questions.Count;
+            if (d.Answers.Count > n || d.Index >= n || d.Index < 0) { ClearDraft(); return; }
+            answers.AddRange(d.Answers);
+            foreach (var (k, v) in d.Orders) orders[k] = v;
+            index = d.Index;
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("Questionnaire", ex);
+            ClearDraft();
+        }
+    }
+
+    void SaveDraft() => Preferences.Default.Set(DraftKey, JsonSerializer.Serialize(new Draft(index, answers, orders)));
+
+    void ClearDraft() => Preferences.Default.Remove(DraftKey);
+
+    protected override bool OnBackButtonPressed()
+    {
+        if (NoteOpen || stepBack == null) return base.OnBackButtonPressed();
+        _ = stepBack();
+        return true;
     }
 
     protected override Music.Zone MusicZone => Music.Zone.Quiz;
@@ -50,17 +91,33 @@ public class QuestionnairePage : BasePage
         if (!string.IsNullOrEmpty(quiz.Source))
             stack.Children.Add(Ui.Text("Источник: " + quiz.Source, 11, Pal.Ink2));
 
-        var go = new Btn("НАЧАТЬ ▶", Pal.Violet, Pal.OnAccent);
+        stepBack = null;
+        bool resume = answers.Count > 0;
+        var go = new Btn(resume ? $"ПРОДОЛЖИТЬ С ВОПРОСА {Math.Min(index, answers.Count) + 1} ▶" : "НАЧАТЬ ▶", Pal.Violet, Pal.OnAccent);
         go.Clicked += async (s, e) =>
         {
             if (locked) return;
             locked = true;
             go.Enabled = false;
-            // после возврата к описанию прежние ответы остаются выбранными
-            index = 0;
+            // прежние ответы остаются выбранными; продолжаем с первого неотвеченного или того, где остановились
+            index = Math.Min(index, answers.Count);
             await ShowQuestion();
         };
         stack.Children.Add(go);
+
+        if (resume)
+        {
+            stack.Children.Add(Form.Link("НАЧАТЬ ЗАНОВО", Pal.TealInk, async () =>
+            {
+                if (locked) return;
+                locked = true;
+                answers.Clear();
+                orders.Clear();
+                index = 0;
+                ClearDraft();
+                await ShowQuestion();
+            }, TextAlignment.Center));
+        }
 
         var back = Ui.Text("НАЗАД", 12, Pal.Ink2, true, TextAlignment.Center);
         Ui.OnTap(back, async () => await Pop());
@@ -74,6 +131,8 @@ public class QuestionnairePage : BasePage
         locked = true;
         if (index >= quiz.Questions.Count)
         {
+            stepBack = null;
+            ClearDraft();
             await ShowResult();
             return;
         }
@@ -108,6 +167,7 @@ public class QuestionnairePage : BasePage
             if (index < answers.Count) answers[index] = selectedValue.Value;
             else answers.Add(selectedValue.Value);
             index++;
+            if (index < quiz.Questions.Count) SaveDraft();
             await ShowQuestion();
         };
 
@@ -120,7 +180,7 @@ public class QuestionnairePage : BasePage
             MinimumHeightRequest = 52, Padding = new Thickness(16, 12)
         };
         SemanticProperties.SetHint(back, index == 0 ? "Вернуться к описанию опросника" : "Вернуться к прошлому вопросу");
-        back.Clicked += async (s, e) =>
+        async Task StepBack()
         {
             if (locked || index != questionIndex) return;
             locked = true;
@@ -132,13 +192,17 @@ public class QuestionnairePage : BasePage
             }
             if (index == 0)
             {
+                SaveDraft();
                 locked = false;
                 ShowIntro();
                 return;
             }
             index--;
+            SaveDraft();
             await ShowQuestion();
-        };
+        }
+        back.Clicked += async (s, e) => await StepBack();
+        stepBack = StepBack;
 
         void AddAnswer(string text, int value)
         {
@@ -158,6 +222,10 @@ public class QuestionnairePage : BasePage
                 Sound.Play("tap");
                 Mark();
                 next.IsEnabled = true;
+                // ответ на открытом вопросе сохраняется сразу, ещё до «Дальше»
+                if (index < answers.Count) answers[index] = value;
+                else if (index == answers.Count) answers.Add(value);
+                SaveDraft();
             };
             body.Children.Add(button);
         }
