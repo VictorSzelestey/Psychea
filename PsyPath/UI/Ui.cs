@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Shapes;
+using Microsoft.Maui.Layouts;
 using PsyPath.Services;
 
 namespace PsyPath.UI;
@@ -194,21 +195,48 @@ public class Lifted : Grid
     public static readonly Thickness Below = new(5, 2, 5, 9);
 
     public GraphicsView Shade { get; }
+    readonly View body;
 
     public Lifted(View body, double radius, Color? color = null, Thickness? pad = null)
     {
-        var p = pad ?? Below;
-        Padding = p;
+        this.body = body;
+        Padding = pad ?? Below;
         Shade = new GraphicsView
         {
-            Drawable = new Drawable(p, radius, color ?? Pal.Ink),
+            Drawable = new Drawable(Padding, radius, color ?? Pal.Ink),
             InputTransparent = true,
-            BackgroundColor = Colors.Transparent,
-            // холст на всю площадь вместе с полями
-            Margin = new Thickness(-p.Left, -p.Top, -p.Right, -p.Bottom)
+            BackgroundColor = Colors.Transparent
         };
         Children.Add(Shade);
         Children.Add(body);
+    }
+
+    // размер задаёт только элемент с полями: холст тени в Grid растягивался на всё свободное место,
+    // и знак раздела на дороге становился квадратом во всю клетку
+    protected override ILayoutManager CreateLayoutManager() => new Manager(this);
+
+    sealed class Manager(Lifted owner) : ILayoutManager
+    {
+        public Size Measure(double widthConstraint, double heightConstraint)
+        {
+            var p = owner.Padding;
+            var size = ((IView)owner.body).Measure(widthConstraint - p.HorizontalThickness, heightConstraint - p.VerticalThickness);
+            IView self = owner;
+            double w = LayoutManager.ResolveConstraints(widthConstraint, self.Width, size.Width + p.HorizontalThickness, self.MinimumWidth, self.MaximumWidth);
+            double h = LayoutManager.ResolveConstraints(heightConstraint, self.Height, size.Height + p.VerticalThickness, self.MinimumHeight, self.MaximumHeight);
+            ((IView)owner.Shade).Measure(w, h);
+            return new Size(w, h);
+        }
+
+        public Size ArrangeChildren(Rect bounds)
+        {
+            var p = owner.Padding;
+            // холст на всю площадь вместе с полями, элемент — внутри полей
+            ((IView)owner.Shade).Arrange(bounds);
+            ((IView)owner.body).Arrange(new Rect(bounds.X + p.Left, bounds.Y + p.Top,
+                Math.Max(0, bounds.Width - p.HorizontalThickness), Math.Max(0, bounds.Height - p.VerticalThickness)));
+            return bounds.Size;
+        }
     }
 
     // несколько скруглённых слоёв, каждый шире и прозрачнее: к краю полей тень сходит на нет

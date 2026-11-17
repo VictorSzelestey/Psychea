@@ -3,7 +3,7 @@ using PsyPath.Services;
 
 namespace PsyPath.UI;
 
-// карта на главной: четыре острова 2×2 на розовой воде и манул в лодке посередине.
+// карта на главной: четыре острова 2×2 на розовой воде (map_sea.jpg — только вода) и манул в лодке посередине.
 // Закрытый остров накрыт своей серой копией и замком; при открытии замок падает, а серая копия тает.
 // Нажатие на открытый остров — Opened, на закрытый — всплывающая подпись поверх карты
 public class IslandMap : ContentView
@@ -30,6 +30,8 @@ public class IslandMap : ContentView
             // остров, который открылся, пока карта не показывалась, рисуется закрытым: замок упадёт в Reveal
             bool showLocked = !open || !AppState.P.IslandsShown.Contains(island.Number) && island.Number > 1;
 
+            // цветной остров лежит под серой копией: море — чистая вода, острова на нём не нарисованы
+            layer.Children.Add(Place(new Image { Source = $"island_{island.Image}.png", Aspect = Aspect.Fill, InputTransparent = true }, island.Box));
             var gray = new Image { Source = $"island_{island.Image}_gray.png", Aspect = Aspect.Fill, InputTransparent = true, Opacity = showLocked ? 1 : 0 };
             layer.Children.Add(Place(gray, island.Box));
 
