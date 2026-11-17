@@ -39,7 +39,9 @@ Check(ReleaseNotes.Format(Array.Empty<string>()).Contains("не опублико
 // HTTP is fully replaced: exercise production Updater.Check without GitHub access.
 var transport = new ReleaseTransport { Json = json };
 var client = (HttpClient)typeof(Updater).GetField("Http", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(client, transport);
+var handlerField = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.Instance | BindingFlags.NonPublic)!;
+var originalHandler = (HttpMessageHandler)handlerField.GetValue(client)!;
+handlerField.SetValue(client, transport);
 AppInfo.Current.Version = new Version(1, 5, 3);
 var update = await Updater.Check();
 Check(update.Ok && update.Update?.Version == installedVersion, "previous version detects new release");
@@ -48,17 +50,33 @@ string prompt = Updater.Prompt(update.Update);
 Check(prompt.Contains("Что нового:") && notes[0].Changes.All(x => prompt.Contains("• " + x)), "update prompt shows every change before installation");
 AppInfo.Current.Version = installedVersion;
 Check((await Updater.Check()) is { Ok: true, Update: null }, "installed release is not offered again");
+AppInfo.Current.Version = new Version(1, 8, 0);
+transport.CachedJson = """{"version":"1.8.0","apk":"https://example.invalid/app.apk"}""";
+var fresh = await Updater.Check();
+Check(fresh.Ok && fresh.Update?.Version == installedVersion, "1.8.0 bypasses a cached 1.8.0 manifest and sees the new release");
+Check(new Uri(fresh.Update!.ApkUrl).Query.Contains("version=" + installedVersion), "APK download URL bypasses the cache of previous versions");
+transport.CachedJson = null;
 AppInfo.Current.Version = new Version(1, 4, 0);
 transport.Json = """{"version":"1.5.0","apk":"https://example.invalid/app.apk"}""";
 var legacy = await Updater.Check();
 Check(legacy.Ok && legacy.Update != null && Updater.Prompt(legacy.Update).Contains("не опубликовано"), "older manifests without changelog remain supported");
 Console.WriteLine("Update checks passed.");
+if (args.Contains("--live"))
+{
+    handlerField.SetValue(client, originalHandler);
+    AppInfo.Current.Version = new Version(1, 8, 0);
+    var live = await Updater.Check();
+    Check(live.Ok && live.Update?.Version == installedVersion, "live GitHub: 1.8.0 detects " + installedVersion);
+}
 
 sealed class ReleaseTransport : HttpMessageHandler
 {
     public string Json = "{}";
+    public string? CachedJson;
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-        Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Json) });
+        Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(
+            CachedJson != null && (string.IsNullOrEmpty(request.RequestUri?.Query) || request.Headers.CacheControl?.NoCache != true)
+                ? CachedJson : Json) });
 }
 
 public static class AppInfo

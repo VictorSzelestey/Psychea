@@ -49,7 +49,10 @@ public static class Updater
         try
         {
             using var timeout = new CancellationTokenSource(CheckTimeout);
-            using var req = new HttpRequestMessage(HttpMethod.Get, LatestUrl);
+            // У raw.githubusercontent.com кэш до пяти минут; каждый запрос проверки должен быть свежим.
+            using var req = new HttpRequestMessage(HttpMethod.Get, LatestUrl + "?check=" + Guid.NewGuid().ToString("N"));
+            req.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true, NoStore = true };
+            req.Headers.Pragma.ParseAdd("no-cache");
             using var resp = await Http.SendAsync(req, timeout.Token);
 
             if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -68,10 +71,14 @@ public static class Updater
             string url = root.GetProperty("apk").GetString() ?? "";
             if (url.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)
                 && url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                return new UpdateCheck(true, new AppUpdate(latest, url, ReleaseNotes.ReadChanges(root)));
+            {
+                var apk = new UriBuilder(url);
+                apk.Query = string.IsNullOrEmpty(apk.Query) ? "version=" + latest : apk.Query.TrimStart('?') + "&version=" + latest;
+                return new UpdateCheck(true, new AppUpdate(latest, apk.Uri.AbsoluteUri, ReleaseNotes.ReadChanges(root)));
+            }
             return new UpdateCheck(false, null, "В новой версии нет файла APK");
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException or UriFormatException)
         {
             return new UpdateCheck(false, null, "Нет связи с GitHub");
         }

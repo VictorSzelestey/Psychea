@@ -241,20 +241,22 @@ public class PathPage : DataPage
     // Нажатие на кружок открывает подсказку с названием урока и кнопкой; у текущего урока она открыта сразу
     View Road(Island island, Dictionary<string, LessonState> states, int level)
     {
-        var road = new IslandRoad(island.Image);
-        // сплошная местность выходит на боковые поля страницы, до краёв экрана
-        if (road.FullWidth) road.Margin = new Thickness(-18, 0);
+        var sections = Islands.SectionsOf(island);
+        bool compact = sections.Sum(s => s.Lessons.Count + 1) > 18;
+        var road = new IslandRoad(island.Image, compact);
+        var overview = new VerticalStackLayout { Spacing = 4 };
         (View Stop, Func<View> Card)? open = null;
         int place = 0;
-        foreach (var sec in Islands.SectionsOf(island))
+        foreach (var sec in sections)
         {
-            road.Add(SectionSign(sec, level), SignWidth);
+            if (compact) overview.Children.Add(SectionSign(sec, level, compact: true));
+            else road.Add(SectionSign(sec, level), SignWidth);
             for (int i = 0; i < sec.Lessons.Count; i++)
             {
                 var lesson = sec.Lessons[i];
                 var state = states[lesson.Id];
                 int index = i;
-                var stop = LessonStop(state, index, island.Decor, place + i + 1);
+                var stop = LessonStop(state, index, island.Decor, place + i + 1, compact ? 44 : LessonSize);
                 View Card() => LessonCard(sec, lesson, index, state);
                 Ui.OnTap(stop, () =>
                 {
@@ -264,18 +266,20 @@ public class PathPage : DataPage
                 });
                 SemanticProperties.SetDescription(stop, $"Урок {index + 1}: {lesson.Title}" + (state == LessonState.Locked ? ", закрыт" : ""));
                 AutomationProperties.SetIsInAccessibleTree(stop, true);
-                road.Add(stop, StopBox);
+                road.Add(stop, compact ? 44 : StopBox);
                 if (state == LessonState.Current) open = (stop, Card);
             }
             place += 2;
         }
         currentStop = open?.Stop;
         if (open is { } o) road.Show(o.Stop, o.Card());
-        return road;
+        if (!compact) return road;
+        overview.Children.Add(road);
+        return overview;
     }
 
     // знак раздела на дороге: номер и название, у закрытого — уровень, на котором откроется
-    View SectionSign(Section sec, int level)
+    View SectionSign(Section sec, int level, bool compact = false)
     {
         int number = AppState.SectionNumber(sec.Id);
         int unlock = AppState.UnlockLevel(sec.Id);
@@ -295,7 +299,7 @@ public class PathPage : DataPage
         sign.Padding = new Thickness(12, 6);
         sign.Stroke = new SolidColorBrush(locked ? Pal.Gray : Pal.Violet);
         sign.StrokeThickness = 2;
-        var host = new Grid { WidthRequest = SignWidth, HeightRequest = SignWidth };
+        var host = new Grid { WidthRequest = compact ? -1 : SignWidth, HeightRequest = compact ? 70 : SignWidth };
         host.Children.Add(new Lifted(sign, 16) { VerticalOptions = LayoutOptions.Center, InputTransparent = true, CascadeInputTransparent = false });
         SemanticProperties.SetDescription(host, $"Раздел {number}: {sec.Title}");
         if (locked) Ui.OnTap(sign, async () => await Dlg.Alert(this, "ЗАКРЫТО", $"Раздел откроется на {unlock} уровне."));
@@ -307,7 +311,7 @@ public class PathPage : DataPage
     }
 
     // кружок урока с украшением острова; текущий пульсирует, рядом искры
-    View LessonStop(LessonState state, int index, string decor, int variant)
+    View LessonStop(LessonState state, int index, string decor, int variant, double size = LessonSize)
     {
         Color fill = state switch
         {
@@ -322,10 +326,10 @@ public class PathPage : DataPage
 
         View mark;
         if (state == LessonState.Locked)
-            mark = new PixelIcon(Icons.Lock, Pal.OnAccent, LessonSize * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
+            mark = new PixelIcon(Icons.Lock, Pal.OnAccent, size * 0.36, Pal.Gray) { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center };
         else
         {
-            var label = Ui.Text(glyph, LessonSize * 0.36, text, true, TextAlignment.Center);
+            var label = Ui.Text(glyph, size * 0.36, text, true, TextAlignment.Center);
             // галочки нет в основном шрифте
             if (glyph == "✓") label.FontFamily = "MonoBold";
             label.VerticalTextAlignment = TextAlignment.Center;
@@ -341,20 +345,22 @@ public class PathPage : DataPage
             BackgroundColor = fill,
             Stroke = new SolidColorBrush(Colors.White),
             StrokeThickness = 3,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(LessonSize / 2) },
-            WidthRequest = LessonSize,
-            HeightRequest = LessonSize,
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(size / 2) },
+            WidthRequest = size,
+            HeightRequest = size,
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center
         };
         if (state == LessonState.Current) pulsing = circle;
 
-        var stop = new Grid { WidthRequest = StopBox, HeightRequest = StopBox };
-        stop.Children.Add(new Decor(decor, variant, LessonSize) { Margin = 0 });
+        double boxSize = size < LessonSize ? size : StopBox;
+        var stop = new Grid { WidthRequest = boxSize, HeightRequest = boxSize };
+        if (size == LessonSize) stop.Children.Add(new Decor(decor, variant, size) { Margin = 0 });
         // поля тени симметричные: кружок остаётся в центре украшения
-        stop.Children.Add(new Lifted(circle, -1, Pal.Violet, new Thickness(7)) { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center, InputTransparent = true });
+        if (size < LessonSize) stop.Children.Add(circle);
+        else stop.Children.Add(new Lifted(circle, -1, Pal.Violet, new Thickness(7)) { HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center, InputTransparent = true });
         if (state == LessonState.Current)
-            stop.Children.Add(new Burst { Margin = new Thickness((StopBox - LessonSize) / 2 - 14, (StopBox - LessonSize) / 2 - 8, 0, 0) });
+            stop.Children.Add(new Burst { Margin = new Thickness((boxSize - size) / 2 - 14, (boxSize - size) / 2 - 8, 0, 0) });
         return stop;
     }
 
