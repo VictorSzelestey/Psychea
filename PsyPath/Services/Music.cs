@@ -7,9 +7,11 @@ namespace PsyPath.Services;
 // Вкл/выкл, громкость и тишина в опросниках и карточках — в настройках, они общие для всех треков
 public static class Music
 {
-    public enum Zone { Menu, Quiz, Cards }
+    public enum Zone { Menu, Quiz, Cards, JungleDungeon }
 
     const string DefaultTrack = "music_menu.mp3";
+    const string DungeonTrack = "music_jungle_dungeon.mp3";
+    static readonly SemaphoreSlim switching = new(1, 1);
 
     static Zone zone = Zone.Menu;
     static bool ready;
@@ -17,15 +19,15 @@ public static class Music
     // какой трек сейчас загружен в плеер
     static string loaded = "";
 
-    // трек текущей темы
-    static string Track => Islands.CurrentTheme.Music ?? DefaultTrack;
+    static string Track => zone == Zone.JungleDungeon ? DungeonTrack : Islands.CurrentTheme.Music ?? DefaultTrack;
 
     public static async Task Init()
     {
 #if ANDROID
-        if (ready) return;
+        await switching.WaitAsync();
         try
         {
+            if (ready) return;
             string track = Track;
             Droid.Bgm.Load(await Cached(track));
             loaded = track;
@@ -37,6 +39,8 @@ public static class Music
             // без музыки приложение работает как обычно
             CrashLog.Write("Music", ex);
         }
+        finally { switching.Release(); }
+        if (ready && loaded != Track) await UseTheme();
 #else
         await Task.CompletedTask;
 #endif
@@ -46,19 +50,26 @@ public static class Music
     public static async Task UseTheme()
     {
 #if ANDROID
-        if (!ready) return;
-        string track = Track;
-        if (track == loaded) return;
+        if (!ready || loaded == Track) return;
+        await switching.WaitAsync();
         try
         {
-            loaded = track;
-            Droid.Bgm.Switch(await Cached(track));
+            // Навигация может сменить трек, пока предыдущий копируется из APK.
+            while (loaded != Track)
+            {
+                string track = Track;
+                string path = await Cached(track);
+                if (track != Track) continue;
+                Droid.Bgm.Switch(path);
+                loaded = track;
+            }
             Apply();
         }
         catch (Exception ex)
         {
             CrashLog.Write("Music", ex);
         }
+        finally { switching.Release(); }
 #else
         await Task.CompletedTask;
 #endif
@@ -85,6 +96,7 @@ public static class Music
     {
         zone = next;
         Apply();
+        _ = UseTheme();
     }
 
     // приложение ушло в фон и вернулось
@@ -110,7 +122,8 @@ public static class Music
             Zone.Cards => Settings.MusicInCards,
             _ => true
         };
-        bool play = Settings.MusicOn && Settings.MusicVolume > 0 && here && !asleep;
+        bool matchingDungeon = (zone == Zone.JungleDungeon) == (loaded == DungeonTrack);
+        bool play = Settings.MusicOn && Settings.MusicVolume > 0 && here && !asleep && matchingDungeon;
 #if ANDROID
         try { Droid.Bgm.Set(play, Volume(Settings.MusicVolume)); }
         catch (Exception ex) { CrashLog.Write("Music", ex); }

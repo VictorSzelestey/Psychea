@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PsyPath.Services;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace PsyPath;
 
@@ -13,6 +14,7 @@ public static class MauiProgram
         builder.Logging.AddProvider(new CrashLogProvider());
         builder
             .UseMauiApp<App>()
+            .UseSkiaSharp()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("DejaVuSansMono.ttf", "Mono");

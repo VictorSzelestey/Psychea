@@ -28,7 +28,10 @@ public class AdminPage : AdminBase
         var r = await Api.AdminStats();
         if (!r.Ok)
         {
-            Show("АДМИН", Message(r.Error, Pal.RedInk));
+            var fallback = List();
+            fallback.Children.Add(Message(r.Error, Pal.RedInk));
+            if (Api.User?.IsAdmin == true) fallback.Children.Add(DungeonCard());
+            Show("АДМИН", fallback);
             return;
         }
         Show("АДМИН", Build(r.Body), animate: true);
@@ -69,6 +72,7 @@ public class AdminPage : AdminBase
         stack.Children.Add(promo);
         stack.Children.Add(CrystalsCard());
         stack.Children.Add(IslandsCard());
+        stack.Children.Add(DungeonCard());
         stack.Children.Add(ContentLinks());
 
         var lessons = new VerticalStackLayout { Spacing = 8 };
@@ -99,6 +103,30 @@ public class AdminPage : AdminBase
         }
         stack.Children.Add(Ui.Card(quiz, Pal.Paper, 12));
         return stack;
+    }
+
+    View DungeonCard()
+    {
+        const string title = "Подсвечивать правильные ответы";
+        var row = new Grid
+        {
+            ColumnSpacing = 8,
+            ColumnDefinitions = { new(GridLength.Star), new(GridLength.Auto) }
+        };
+        var label = Ui.Text(title, 14);
+        label.VerticalOptions = LayoutOptions.Center;
+        row.Children.Add(label);
+        var toggle = new Switch { IsToggled = Settings.DungeonAnswerHints, MinimumHeightRequest = 48 };
+        SemanticProperties.SetDescription(toggle, title);
+        toggle.Toggled += (_, e) => Settings.DungeonAnswerHints = e.Value;
+        Grid.SetColumn(toggle, 1);
+        row.Children.Add(toggle);
+
+        var box = new VerticalStackLayout { Spacing = 4 };
+        box.Children.Add(Ui.Text("ДАНЖИ", 12, Pal.RedInk, true));
+        box.Children.Add(row);
+        box.Children.Add(Ui.Text("Для твоего аккаунта на этом устройстве, во всех данжах.", 11, Pal.Ink2));
+        return Ui.Card(box, Pal.Paper, 12);
     }
 
     // кристаллы себе: проверить магазин без прохождения уроков. Только у админа

@@ -76,6 +76,13 @@ public class IslandRoad : ContentView
         layer.Children.Add(stop);
     }
 
+    public void SetDestination(View destination)
+    {
+        AbsoluteLayout.SetLayoutFlags(destination, Microsoft.Maui.Layouts.AbsoluteLayoutFlags.PositionProportional);
+        AbsoluteLayout.SetLayoutBounds(destination, new Rect(line[0], 0.028, 196, 48));
+        layer.Children.Add(destination);
+    }
+
     public bool IsOpen(View stop) => bubble is { } b && stops[b.Stop].View == stop;
 
     // подсказка под остановкой, у нижнего края дороги — над ней. Прошлая закрывается

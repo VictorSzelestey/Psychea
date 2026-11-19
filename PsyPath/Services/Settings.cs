@@ -35,6 +35,17 @@ public static class Settings
         set => Preferences.Default.Set("set_music_cards", value);
     }
 
+    public static bool DungeonAnswerHints
+    {
+        get => Api.User is { IsAdmin: true } admin &&
+            Preferences.Default.Get($"set_dungeon_hints_{admin.Id}", false);
+        set
+        {
+            if (Api.User is { IsAdmin: true } admin)
+                Preferences.Default.Set($"set_dungeon_hints_{admin.Id}", value);
+        }
+    }
+
     // множитель размера всего текста: 1, 1.15 или 1.3
     public static double FontScale
     {

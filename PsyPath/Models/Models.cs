@@ -262,6 +262,9 @@ public class ProgressData
     public List<int> Islands { get; set; } = new();
     public List<int> IslandsShown { get; set; } = new();
 
+    // Лучшее время в миллисекундах. Наличие записи также отмечает выдачу сундука.
+    public Dictionary<string, long> DungeonRecords { get; set; } = new();
+
     // за что уже вернули кристаллы (id темы, убранной из продажи); Notices — сообщения, которые главная покажет один раз
     public List<string> Refunds { get; set; } = new();
     public List<string> Notices { get; set; } = new();

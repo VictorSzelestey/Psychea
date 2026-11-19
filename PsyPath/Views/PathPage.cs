@@ -273,6 +273,22 @@ public class PathPage : DataPage
         }
         currentStop = open?.Stop;
         if (open is { } o) road.Show(o.Stop, o.Card());
+        if (island.Image == "jungle")
+        {
+            var temple = new Button
+            {
+                Text = DungeonDefinition.Jungle.Title,
+                FontFamily = "BodyBold",
+                FontSize = 16,
+                BackgroundColor = Color.FromArgb("#F2C45F"),
+                TextColor = Color.FromArgb("#2B1B0D"),
+                BorderColor = Color.FromArgb("#FFE7A5"),
+                BorderWidth = 2,
+                CornerRadius = 18
+            };
+            temple.Clicked += async (s, e) => await Push(new DungeonPage(DungeonDefinition.Jungle));
+            road.SetDestination(temple);
+        }
         if (!compact) return road;
         overview.Children.Add(road);
         return overview;
